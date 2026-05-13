@@ -6,25 +6,25 @@ format: pdf
 editor: visual
 ---
 
-## Wstęp
+## Wstęp (to raczej do raportu w pdf ale kusi tak zostawić szczerze)
 
 Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierającym 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
 
 [^1]: Aeberhard, S. & Forina, M. (1992). Wine \[Dataset\]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5PC7J>)
+
+Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wciąż być używany do testowania metod klasyfikacji, zwłaszcza z powodu wykonanej standaryzacji (z-score) danych, co usuwa wpływ jednostek na wyniki algorytmów.
 
 Źródła \
 (a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
 (b) Stefan Aeberhard, email: stefan\@coral.cs.jcu.edu.au"\
 (c) July 1991"
 
-## Running Code
+## Wstęp
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Dane można pobrać ze strony <https://archive.ics.uci.edu/dataset/109/wine>, interesuje nas plik wine.data. Nazwy kolumn nadajemy zgodnie z opisem zawartym w wine.names
 
 ```{r}
 wine_df <-read.csv("wine.data", header=FALSE)
-
-names_content <- readLines("wine.names")
 
 colnames(wine_df) <- c(
   "Class",
@@ -44,7 +44,49 @@ colnames(wine_df) <- c(
 )
 ```
 
-You can add options to executable code like this
+## Wstępna analiza danych - opis struktur danych
+
+DO ZROBIENIA
+
+-   NaN
+
+-   wartości odstające
+
+-   zrównoważenie klas (ile jest win w każdej grupie)
+
+-   rozkłady zmiennych
+
+-   korelacje
+
+-   wykresy pudełkowe - które cechy najlepiej odróżniają od siebie klasy win
+
+## Przygotowanie danych
+
+-   PCA - uwaga na
+
+## Modele
+
+-   LDA (ew. QDA, RDA)
+
+-   kNN zoptymalizowany za pomocą kroswalidacji
+
+-   drzewo decyzyjne
+
+UWAGA NA OVERFITTING!
+
+## Interpretacja modeli (może w "Modele")
+
+## PONADTO
+
+-   Raport - może podobny do samego artykułu naukowego, a może po prostu tutaj cały kod z #\| echo: false
+
+-   Raport w LATEX
+
+-   modele omawiane na zajęciach - git
+
+-   UZASADNIENIE DECYZJI METODOLOGICZNYCH (w zasadzie wszystkiego - wybór miary dopasowania, schemat kroswalidacji itp)
+
+-   Więcej nie znaczy lepiej!
 
 ```{r}
 #| echo: false
