@@ -62,7 +62,15 @@ DO ZROBIENIA
 
 ## Przygotowanie danych
 
--   PCA - uwaga na
+-   standaryzacja danych
+
+<!-- -->
+
+-   przed PCA PODZIAŁ NA ZBIÓR UCZĄCY I TESTOWY - bo inaczej data leakage
+
+<!-- -->
+
+-   PCA
 
 ## Modele
 
