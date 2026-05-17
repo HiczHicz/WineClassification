@@ -173,6 +173,26 @@ ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class)))
 
 UWAGA NA OVERFITTING!
 
+### Drzewo decyzyjne
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+#as.factor - drzewo klasyfikujące a nie regresyjne
+model_drzewa <- rpart(as.factor(Class) ~ ., 
+                      data = wine_df, 
+                      method = "class")
+
+
+rpart.plot(model_drzewa, 
+           type = 2,            #warunki podziału nad węzłami
+           extra = 104,         #pokazuje klasę, prawdopodobieństwo i % obserwacji w węźle
+           box.palette = "auto", 
+           nn = TRUE,           #numery węzłów
+           main = "Drzewo decyzyjne dla zbioru danych Wine")
+```
+
 # DO ZROBIENIA
 
 -   Martyna
@@ -182,6 +202,8 @@ UWAGA NA OVERFITTING!
     -   pomyśleć nad opisem chemicznym - czy potrzebny?
 
     -   wnioski z wartosci odstajacychh dodac zrodla
+
+    -   drzewo decyzyjne poprawić kolory i komentarze i optymalizacja
 
 ## PONADTO - UWAGI PROWADZĄCEGO
 
