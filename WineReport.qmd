@@ -5,17 +5,24 @@ format: pdf
 editor: visual
 ---
 
-## Quarto
+## Wstęp
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierającym 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
 
-## Running Code
+[^1]: Aeberhard, S. & Forina, M. (1992). Wine \[Dataset\]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5PC7J>)
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wciąż być używany do testowania metod klasyfikacji, zwłaszcza z powodu wykonanej standaryzacji (z-score) danych, co usuwa wpływ jednostek na wyniki algorytmów.
 
-```{r}
-1 + 1
-```
+Źródła\
+(a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
+(b) Stefan Aeberhard, email: stefan\@coral.cs.jcu.edu.au"\
+(c) July 1991"
+
+## Metodologia
+
+## Analiza struktury danych Wine
+
+## Interpretacja modeli
 
 You can add options to executable code like this
 

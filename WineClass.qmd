@@ -6,22 +6,9 @@ format: pdf
 editor: visual
 ---
 
-## Wstęp (to raczej do raportu w pdf ale kusi tak zostawić szczerze)
-
-Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierającym 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
-
-[^1]: Aeberhard, S. & Forina, M. (1992). Wine \[Dataset\]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5PC7J>)
-
-Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wciąż być używany do testowania metod klasyfikacji, zwłaszcza z powodu wykonanej standaryzacji (z-score) danych, co usuwa wpływ jednostek na wyniki algorytmów.
-
-Źródła \
-(a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
-(b) Stefan Aeberhard, email: stefan\@coral.cs.jcu.edu.au"\
-(c) July 1991"
-
 ## Wstęp
 
-Dane można pobrać ze strony <https://archive.ics.uci.edu/dataset/109/wine>, interesuje nas plik wine.data. Nazwy kolumn nadajemy zgodnie z opisem zawartym w wine.names
+Dane można pobrać ze strony <https://archive.ics.uci.edu/dataset/109/wine>, interesuje nas plik wine.data. Nazwy kolumn nadajemy zgodnie z opisem zawartym w wine.names.
 
 ```{r}
 wine_df <-read.csv("wine.data", header=FALSE)
@@ -46,13 +33,36 @@ colnames(wine_df) <- c(
 
 ## Wstępna analiza danych - opis struktur danych
 
+### UWAGA DO MADZI - aby stworzyć środowisko w .qmd należy użyć skrótu klawiszowego ctrl+alt+i, na macbook cmd+option+i. **WYBRANY KOLOR RAPORTU NA TEN MOMENT TO #6E1300, przypomina wino**
+
+W trakcie wstępnej analizy danych postępowałyśmy następująco:
+
+-   sprawdzenie brakujących wartości
+
+```{r}
+#wartości brakujące - brak
+colSums(is.na(wine_df))
+```
+
+-   sprawdzenie zrównoważenia klas
+
+```{r}
+library(ggplot2)
+
+#tworzenie wykresu za pomocą ggplot2 - zliczanie 
+
+ggplot(wine_df, aes(x=Class)) +
+  geom_bar(fill="#6E1300") +
+  geom_text(stat='count', aes(label= after_stat(count)), vjust=-0.5) +
+  theme_minimal() +
+  labs(title = "Rozkład klas w zbiorze Wine",
+       x="Klasa",
+       y="Liczba obserwacji")
+```
+
 DO ZROBIENIA
 
--   NaN
-
 -   wartości odstające
-
--   zrównoważenie klas (ile jest win w każdej grupie)
 
 -   rozkłady zmiennych
 
@@ -70,9 +80,9 @@ DO ZROBIENIA
 
 <!-- -->
 
--   PCA
+-   PCA (ma być nieparzyste)
 
-## Modele
+## Tworzenie modeli
 
 -   LDA (ew. QDA, RDA)
 
@@ -82,9 +92,7 @@ DO ZROBIENIA
 
 UWAGA NA OVERFITTING!
 
-## Interpretacja modeli (może w "Modele")
-
-## PONADTO
+## PONADTO - UWAGI PROWADZĄCEGO
 
 -   Raport - może podobny do samego artykułu naukowego, a może po prostu tutaj cały kod z #\| echo: false
 
@@ -95,10 +103,3 @@ UWAGA NA OVERFITTING!
 -   UZASADNIENIE DECYZJI METODOLOGICZNYCH (w zasadzie wszystkiego - wybór miary dopasowania, schemat kroswalidacji itp)
 
 -   Więcej nie znaczy lepiej!
-
-```{r}
-#| echo: false
-2 * 2
-```
-
-The `echo: false` option disables the printing of code (only output is displayed).
