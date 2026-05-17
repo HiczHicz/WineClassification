@@ -11,7 +11,7 @@ editor: visual
 Dane można pobrać ze strony <https://archive.ics.uci.edu/dataset/109/wine>, interesuje nas plik wine.data. Nazwy kolumn nadajemy zgodnie z opisem zawartym w wine.names.
 
 ```{r}
-wine_df <-read.csv("wine.data", header=FALSE)
+wine_df <- read.csv("wine.data", header=FALSE)
 
 colnames(wine_df) <- c(
   "Class",
@@ -31,55 +31,136 @@ colnames(wine_df) <- c(
 )
 ```
 
+W celu poprawnego wyświetlania polskich znaków na wykresach skorzystano z biblioteki showtext:
+
+```{r}
+library(showtext)
+showtext_auto()
+```
+
 ## Wstępna analiza danych - opis struktur danych
 
 ### UWAGA DO MADZI - aby stworzyć środowisko w .qmd należy użyć skrótu klawiszowego ctrl+alt+i, na macbook cmd+option+i. **WYBRANY KOLOR RAPORTU NA TEN MOMENT TO #6E1300, przypomina wino**
 
 W trakcie wstępnej analizy danych postępowałyśmy następująco:
 
--   sprawdzenie brakujących wartości
+1.  **Sprawdzenie brakujących wartości.** Zbiór danych ich nie ma.
 
 ```{r}
-#wartości brakujące - brak
 colSums(is.na(wine_df))
 ```
 
--   sprawdzenie zrównoważenia klas
+2.  **Sprawdzenie zrównoważenia klas.** Żadna z klas nie dominuje nad resztą, choć liczebności nie są równe.
 
 ```{r}
 library(ggplot2)
 
 #tworzenie wykresu za pomocą ggplot2 - zliczanie 
-
-ggplot(wine_df, aes(x=Class)) +
-  geom_bar(fill="#6E1300") +
-  geom_text(stat='count', aes(label= after_stat(count)), vjust=-0.5) +
+  
+ggplot(wine_df, aes(x = Class, fill=as.factor(Class))) +
+  geom_bar() +
+  geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5) +
+  #wykres źle się skalował w pdf - dodanie 15% wolnej przestrzeni nad słupkiem
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) + 
   theme_minimal() +
   labs(title = "Rozkład klas w zbiorze Wine",
-       x="Klasa",
-       y="Liczba obserwacji")
+       x = "Klasa",
+       y = "Liczba obserwacji",
+       fill = "Klasa")
 ```
 
-DO ZROBIENIA
+3.  **Stworzenie wykresu korelacji.** Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem trzech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
 
--   wartości odstające
+-   klaster 1 (lewy górny róg):
+    -   zmienne *Hue, Proanthocyanins, OD280_OD315, Total_phenols, Flavanoids*
+    -   silna korelacja dodatnia, spowodowana zależnościami chemicznymi (flawonidy to związki z grupy polifenoli, wpływają na barwę i wynik testu OD280_OD315 na obecność białek i polifenoli).
+-   klaster 2:
+    -   zmienne *Magnesium, Color_intensity, Alcohol, Proline*
+    -   prolina jest aminokwasem znajdującym się w winogronach, którego stężenie wzrasta wraz z dojrzałością owoców. Przekłada się to na wyższy poziom cukru, w efekcie również alkoholu.
 
--   rozkłady zmiennych
+Klaster 3 i 4 są mniej istotne w analizie:
 
--   korelacje
+-   klaster 3:
+    -   zmienne *Ash, Alcalinity_of_ash*
+    -   powiązane parametry (*Ash* to sucha pozostałość po całkowitym spaleniu substancji organicznych w próbce. Składa się ze związków mineralnych. *Alcalinity_of_ash* mierzy zasadowość popiołu).
+-   klaster 4:
+    -   zmienne *Malic_acid, Nonflavanoid_phenols*
+    -   *Malic_acid*, czyli kwas jabłkowy, odpowiada za kwasowość wina, jego poziom spada w wyniku dojrzewania winogron na słońcu
+    -   DOCZYTAĆ - ZOBACZYĆ STR XXII W KSIĄŻCE
 
--   wykresy pudełkowe - które cechy najlepiej odróżniają od siebie klasy win
+Ponadto, z klastrów można wyciągnąć następujące wnioski:
+
+-   Silne korelacje (zwłaszcza w klastrze 1) -\> **warto zastosować PCA** przed tworzeniem modelu LDA.
+
+-   Drzewo decyzyjne najprawdopodobniej wybierze jako korzeń tylko jedną zmienną z pierwszego klastru - reszta nie wniesie żadnej nowej informacji.
+
+-   Ponieważ zmienne są skorelowane i opisują różne cechy w różnych jednostkach, należy wykonać **standaryzację danych** przed modelowaniem kNN.
+
+```{r}
+library(corrplot)
+
+korelacje_wine <- cor(wine_df[,-1]) #wykluczamy kolumnę Class - zmienna dyskretna
+
+corrplot(korelacje_wine,
+         method = "circle", 
+         order = "hclust", 
+         addrect = 4,
+         col = COL2("RdYlBu"), 
+         tl.srt = 45
+         )
+
+
+```
+
+4.  Wykresy rozkładów zmiennych. Można na ich podstawie wyznaczyć parametry, które izolują dane klasy:
+
+-   *Proline* ma znacznie wyższe wartości w **klasie 1** w porównaniu z pozostałymi klasami. *Malic_acid* ma bardzo niską wariancję dla klasy 1.
+
+-   *Alcohol, Color_intensity* są najniższe w **klasie 2.**
+
+-   W **klasie 3**, *Flavanoids, Hue, Total_Phenols i OD280_OD315* mają niskie wartości tych parametrów.
+
+```{r}
+library(tidyr) #POTRZEBNY KOMENTARZ DO WYKRESU
+
+#dane w formacie długim - potrzebne do wygenerowania wielu wykresów
+wine_long <- pivot_longer(wine_df, 
+                          cols = -Class, 
+                          names_to = "Variable", 
+                          values_to = "Value")
+
+
+ggplot(wine_long, aes(x = Value, fill = as.factor(Class), group = as.factor(Class))) +
+  geom_density(alpha = 0.4) + 
+  facet_wrap(~Variable, scales = "free") + 
+  theme_minimal() +
+  labs(title = "Rozkłady cech fizykochemicznych w podziale na klasy win",
+       x = "Wartość",
+       y = "Gęstość",
+       fill = "Klasa")
+```
+
+5.  Wartości odstające.
+
+-   naruszone zostały założenia LDA o zbliżonej wariancji i braku wartości odstających. Macierze kowariancji mogą być zaburzone.
+
+-   klasy są od siebie fizycznie odseparowane (np. dla parametru *Flavanoids*), zatem model kNN oparty na odległościach, czy też drzewo decyzyjne oparte na regułach, znajdą czyste granice podziału dla tych zmiennych.
+
+```{r}
+ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class))) +
+  geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2) +
+  facet_wrap(~Variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Analiza wartości odstających w podziale na klasy",
+       x = "Klasa",
+       y = "Wartość",
+     fill = "Klasa")
+```
 
 ## Przygotowanie danych
 
 -   standaryzacja danych
-
-<!-- -->
-
 -   przed PCA PODZIAŁ NA ZBIÓR UCZĄCY I TESTOWY - bo inaczej data leakage
-
-<!-- -->
-
 -   PCA (ma być nieparzyste)
 
 ## Tworzenie modeli
@@ -91,6 +172,16 @@ DO ZROBIENIA
 -   drzewo decyzyjne
 
 UWAGA NA OVERFITTING!
+
+# DO ZROBIENIA
+
+-   Martyna
+
+    -   ZMIENIĆ KOLEJNOŚĆ W EDA
+
+    -   pomyśleć nad opisem chemicznym - czy potrzebny?
+
+    -   wnioski z wartosci odstajacychh dodac zrodla
 
 ## PONADTO - UWAGI PROWADZĄCEGO
 
