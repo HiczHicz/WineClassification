@@ -205,6 +205,16 @@ rpart.plot(model_drzewa,
 
     -   drzewo decyzyjne poprawić kolory i komentarze i optymalizacja
 
+    -   bagging drzew!
+
+    -   kolejność - oddzielamy, potem standaryzacja recipes
+
+-   KNN - jakieś manipulacje innymi rzeczami niż K
+
+-   popranwie metodologicznie
+
+-   dobra interpretacja, np. czy zwracają uwagę na inne cechy, accuracy, czy się wszystkie mylą na tych samych obserwacjach
+
 ## PONADTO - UWAGI PROWADZĄCEGO
 
 -   Raport - może podobny do samego artykułu naukowego, a może po prostu tutaj cały kod z #\| echo: false
