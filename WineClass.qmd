@@ -596,18 +596,18 @@ Y_test_full  <- wine_test$Class
 # Budowa ostatecznego modelu PCA na całym zbiorze treningowym
 pca_full <- prcomp(X_train_full, center = TRUE, scale. = TRUE)
 
-# Projekcja na 5 pierwszych składowych głównych
-train_pca_full <- data.frame(Class = Y_train_full, pca_full$x[, 1:5])
-test_pca_full  <- data.frame(Class = Y_test_full, predict(pca_full, newdata = X_test_full)[, 1:5])
+# POPRAWKA: Projekcja na optymalną liczbę składowych głównych (best_pca zamiast poziomu 1:5)
+train_pca_full <- data.frame(Class = Y_train_full, pca_full$x[, 1:best_pca])
+test_pca_full  <- data.frame(Class = Y_test_full, predict(pca_full, newdata = X_test_full)[, 1:best_pca])
 
 
 # 2. Trenowanie finałowych modeli na całych dostępnych danych treningowych
 
-# Finałowy model kNN (z optymalnym k)
-final_knn <- kknn(Class ~ ., train = train_pca_full, test = test_pca_full, k = best_k, kernel = "rectangular")
+# Finałowy model kNN (POPRAWKA: uwzględnia wybrane best_k oraz best_kernel)
+final_knn <- kknn(Class ~ ., train = train_pca_full, test = test_pca_full, k = best_k, kernel = best_kernel)
 pred_test_knn <- final_knn$fitted.values
 
-# Finałowy model LDA
+# Finałowy model LDA (działa automatycznie na optymalnej liczby składowych z train_pca_full)
 final_lda <- lda(Class ~ ., data = train_pca_full)
 pred_test_lda <- predict(final_lda, newdata = test_pca_full)$class
 
@@ -638,11 +638,9 @@ print(cm_tree)
 cat("Dokładność Drzewa na zbiorze testowym:", round(mean(pred_test_tree == Y_test_full), 4), "\n")
 
 # --- GRAFICZNE MACIERZE POMYŁEK NA JEDNYM WYKRESIE ---
-# install.packages("patchwork") # Odkomentuj i uruchom raz, jeśli nie masz tego pakietu
 library(patchwork)
 library(ggplot2)
 
-# Funkcja konwertująca tekstową macierz na wykres ggplot2
 rysuj_macierz <- function(cm, tytul, kolor_glowny) {
   cm_df <- as.data.frame(cm)
   cm_df$Przewidywana <- factor(cm_df$Przewidywana, levels = rev(levels(cm_df$Przewidywana)))
@@ -659,13 +657,10 @@ rysuj_macierz <- function(cm, tytul, kolor_glowny) {
           legend.position = "none")
 }
 
-# Rysowanie macierzy (ze skróconymi tytułami)
 wykres_cm_knn <- rysuj_macierz(cm_knn, "kNN", "#18BC9C")
 wykres_cm_lda <- rysuj_macierz(cm_lda, "LDA", "#2C3E50")
 wykres_cm_tree <- rysuj_macierz(cm_tree, "Drzewo decyzyjne", "#6E1300")
 
-# --- DODANE: Łączenie wykresów za pomocą pakietu patchwork ---
-# Operator '+' łączy wykresy, a plot_layout ustala, że mają być w 3 kolumnach (obok siebie)
 wykres_zbiorczy <- wykres_cm_knn + wykres_cm_lda + wykres_cm_tree +
   plot_layout(ncol = 3) +
   plot_annotation(
@@ -673,7 +668,6 @@ wykres_zbiorczy <- wykres_cm_knn + wykres_cm_lda + wykres_cm_tree +
     theme = theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))
   )
 
-# Wyświetlenie ostatecznego, połączonego wykresu
 print(wykres_zbiorczy)
 ```
 
@@ -1053,25 +1047,17 @@ ggplot(df_plots_pca, aes(x = PC1, y = PC2, color = Class)) +
        y = "Druga składowa główna (PC2)")
 ```
 
--   Martyna
+-   
 
-    -   ZMIENIĆ KOLEJNOŚĆ W EDA
+# TO DO
 
-    -   pomyśleć nad opisem chemicznym - czy potrzebny?
+-   ZMIENIĆ KOLEJNOŚĆ W EDA
 
-    -   wnioski z wartosci odstajacychh dodac zrodla
+    -   metodologię wyjaśnić więcej rzeczy
 
-    -   drzewo decyzyjne poprawić kolory i komentarze i optymalizacja
+    -   lepsze kom
 
-    -   bagging drzew!
-
-    -   kolejność - oddzielamy, potem standaryzacja recipes
-
--   KNN - jakieś manipulacje innymi rzeczami niż K
-
--   popranwie metodologicznie
-
--   dobra interpretacja, np. czy zwracają uwagę na inne cechy, accuracy, czy się wszystkie mylą na tych samych obserwacjach
+    -   raport
 
 ## PONADTO - UWAGI PROWADZĄCEGO
 
