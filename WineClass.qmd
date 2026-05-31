@@ -623,7 +623,10 @@ pred_test_tree <- predict(final_tree, newdata = wine_test)
 
 
 #Wyświetlenie macierzy pomyłek i wyników Accuracy - graficzne
-
+#tworzenie bazowych macierzy pomyłek
+cm_knn <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_knn)
+cm_lda <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_lda)
+cm_tree <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_tree)
 
 #GRAFICZNE MACIERZE POMYŁEK na jednym wykresie
 library(patchwork)
