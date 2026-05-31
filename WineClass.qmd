@@ -478,7 +478,7 @@ acc_lda_przed <- mean_lda_acc[idx_lda_bazowe]
 #ZBUDOWANIE RAMKI DANYCH DO WYKRESU ---
 df_porownanie <- data.frame(
   Model = rep(c("kNN", "Drzewo decyzyjne", "LDA"), each = 2),
-  Etap = rep(c("1. Przed tuningiem", "2. Po tuningu"), times = 3),
+  Etap = rep(c("Przed tuningiem", "Po tuningu"), times = 3),
   Accuracy = c(acc_knn_przed, mean_knn_acc[best_knn_idx], #wyniki optymalne
                acc_tree_przed, mean_tree_acc[best_cp_idx],
                acc_lda_przed,  mean_lda_acc[best_pca_idx])
@@ -486,6 +486,9 @@ df_porownanie <- data.frame(
 
 #zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności
 df_porownanie$Model <- factor(df_porownanie$Model, levels = c("Drzewo decyzyjne", "LDA", "kNN"))
+
+# DODANE: wymuszenie kolejności dla Etapu
+df_porownanie$Etap <- factor(df_porownanie$Etap, levels = c("Przed tuningiem", "Po tuningu"))
 
 #WYKRES
 wykres_porownanie <- ggplot(df_porownanie, aes(x = Model, y = Accuracy, fill = Etap)) +
@@ -635,13 +638,13 @@ rysuj_macierz <- function(cm, tytul, kolor_glowny) {
     geom_text(aes(label = Freq), size = 6, fontface = "bold") +
     scale_fill_gradient(low = "white", high = kolor_glowny) +
     theme_minimal() +
+    coord_fixed() + # <-- DODANE: wymusza kwadratowe kafelki
     labs(title = tytul,
          x = "Rzeczywista",
          y = "Przewidywana") +
     theme(plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
           legend.position = "none")
 }
-
 wykres_cm_knn <- rysuj_macierz(cm_knn, "kNN", "#18BC9C")
 wykres_cm_lda <- rysuj_macierz(cm_lda, "LDA", "#2C3E50")
 wykres_cm_tree <- rysuj_macierz(cm_tree, "Drzewo decyzyjne", "#6E1300")
