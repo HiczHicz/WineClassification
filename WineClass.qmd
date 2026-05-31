@@ -40,17 +40,15 @@ showtext_auto()
 
 ## Wstępna analiza danych - opis struktur danych
 
-### UWAGA DO MADZI - aby stworzyć środowisko w .qmd należy użyć skrótu klawiszowego ctrl+alt+i, na macbook cmd+option+i. **WYBRANY KOLOR RAPORTU NA TEN MOMENT TO #6E1300, przypomina wino**
-
 W trakcie wstępnej analizy danych postępowałyśmy następująco:
 
-1.  **Sprawdzenie brakujących wartości.** Zbiór danych ich nie ma.
+1.  **Sprawdzenie brakujących wartości.**
 
 ```{r}
 colSums(is.na(wine_df))
 ```
 
-2.  **Sprawdzenie zrównoważenia klas.** Żadna z klas nie dominuje nad resztą, choć liczebności nie są równe.
+2.  **Sprawdzenie zrównoważenia klas.**
 
 ```{r}
 library(ggplot2)
@@ -69,7 +67,51 @@ ggplot(wine_df, aes(x = Class, fill=as.factor(Class))) +
        fill = "Klasa")
 ```
 
-3.  **Stworzenie wykresu korelacji.** Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem trzech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
+3.  **Wykresy rozkładów zmiennych.** Można na ich podstawie wyznaczyć parametry, które izolują dane klasy:
+
+-   *Proline* ma znacznie wyższe wartości w **klasie 1** w porównaniu z pozostałymi klasami. *Malic_acid* ma bardzo niską wariancję dla klasy 1.
+
+-   *Alcohol, Color_intensity* są najniższe w **klasie 2.**
+
+-   W **klasie 3**, *Flavanoids, Hue, Total_Phenols i OD280_OD315* mają niskie wartości tych parametrów.
+
+```{r}
+library(tidyr) #POTRZEBNY KOMENTARZ DO WYKRESU
+
+#dane w formacie długim - potrzebne do wygenerowania wielu wykresów
+wine_long <- pivot_longer(wine_df, 
+                          cols = -Class, 
+                          names_to = "Variable", 
+                          values_to = "Value")
+
+
+ggplot(wine_long, aes(x = Value, fill = as.factor(Class), group = as.factor(Class))) +
+  geom_density(alpha = 0.4) + 
+  facet_wrap(~Variable, scales = "free") + 
+  theme_minimal() +
+  labs(title = "Rozkłady cech fizykochemicznych w podziale na klasy win",
+       x = "Wartość",
+       y = "Gęstość",
+       fill = "Klasa")
+```
+
+4.  **Wartości odstające.**
+    -   naruszone zostały założenia LDA o zbliżonej wariancji i braku wartości odstających. Macierze kowariancji mogą być zaburzone.
+
+    -   klasy są od siebie fizycznie odseparowane (np. dla parametru *Flavanoids*), zatem model kNN oparty na odległościach, czy też drzewo decyzyjne oparte na regułach, znajdą czyste granice podziału dla tych zmiennych.
+
+```{r}
+ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class))) +
+  geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2) +
+  facet_wrap(~Variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Analiza wartości odstających w podziale na klasy",
+       x = "Klasa",
+       y = "Wartość",
+     fill = "Klasa")
+```
+
+5.  **Stworzenie wykresu korelacji.** Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem trzech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
 
 -   klaster 1 (lewy górny róg):
     -   zmienne *Hue, Proanthocyanins, OD280_OD315, Total_phenols, Flavanoids*
@@ -109,52 +151,18 @@ corrplot(korelacje_wine,
          tl.srt = 45
          )
 
+#trzeba zaznaczyć tytuł wraz z poprzednim corrplot(). tutaj wygląda brzydko, w raporcie jest dostosowany i generuje się w poprawny sposób przez dodanie execute:
+  #echo: false
+#  warning: false
+ # message: false
+#  fig-align: "center"
+#  fig-width: 8
+#  fig-height: 5
+title(main = "Macierz korelacji predyktorów z grupowaniem (hclust)", 
+      adj=0,
+      font.main = 1, # 2 oznacza pogrubienie (bold)
+      cex.main = 1) # rozmiar odpowiadający size = 16
 
-```
-
-4.  Wykresy rozkładów zmiennych. Można na ich podstawie wyznaczyć parametry, które izolują dane klasy:
-
--   *Proline* ma znacznie wyższe wartości w **klasie 1** w porównaniu z pozostałymi klasami. *Malic_acid* ma bardzo niską wariancję dla klasy 1.
-
--   *Alcohol, Color_intensity* są najniższe w **klasie 2.**
-
--   W **klasie 3**, *Flavanoids, Hue, Total_Phenols i OD280_OD315* mają niskie wartości tych parametrów.
-
-```{r}
-library(tidyr) #POTRZEBNY KOMENTARZ DO WYKRESU
-
-#dane w formacie długim - potrzebne do wygenerowania wielu wykresów
-wine_long <- pivot_longer(wine_df, 
-                          cols = -Class, 
-                          names_to = "Variable", 
-                          values_to = "Value")
-
-
-ggplot(wine_long, aes(x = Value, fill = as.factor(Class), group = as.factor(Class))) +
-  geom_density(alpha = 0.4) + 
-  facet_wrap(~Variable, scales = "free") + 
-  theme_minimal() +
-  labs(title = "Rozkłady cech fizykochemicznych w podziale na klasy win",
-       x = "Wartość",
-       y = "Gęstość",
-       fill = "Klasa")
-```
-
-5.  Wartości odstające.
-
--   naruszone zostały założenia LDA o zbliżonej wariancji i braku wartości odstających. Macierze kowariancji mogą być zaburzone.
-
--   klasy są od siebie fizycznie odseparowane (np. dla parametru *Flavanoids*), zatem model kNN oparty na odległościach, czy też drzewo decyzyjne oparte na regułach, znajdą czyste granice podziału dla tych zmiennych.
-
-```{r}
-ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class))) +
-  geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2) +
-  facet_wrap(~Variable, scales = "free") +
-  theme_minimal() +
-  labs(title = "Analiza wartości odstających w podziale na klasy",
-       x = "Klasa",
-       y = "Wartość",
-     fill = "Klasa")
 ```
 
 ## Przygotowanie danych i tworzenie modeli
@@ -213,7 +221,7 @@ folds <- vfold_cv(wine_train, v = 10, strata = Class)
 
 #siatki do tuningu hiperparametrów
 k_grid <- c(1, 3, 5, 7, 9, 11, 13, 15)
-#--- DODANE: siatka kerneli i połączenie w jedną siatkę (kombinacje)
+#siatka kerneli i połączenie w jedną siatkę (kombinacje)
 kernel_grid <- c("rectangular", "epanechnikov", "gaussian", "optimal")
 knn_grid <- expand.grid(k = k_grid, kernel = kernel_grid)
 
@@ -222,7 +230,7 @@ cp_grid <- seq(0.001, 0.05, by = 0.005)
 pca_grid <- 2:8 
 
 #macierze na wyniki tuningu (wiersze = foldy, kolumny = hiperparametry)
-#--- ZMIENIONE: liczba kolumn zależy teraz od liczby wszystkich kombinacji w knn_grid
+#liczba kolumn zależy teraz od liczby wszystkich kombinacji w knn_grid
 acc_knn_mat <- matrix(0, nrow = 10, ncol = nrow(knn_grid))
 acc_tree_mat <- matrix(0, nrow = 10, ncol = length(cp_grid))
 acc_lda_mat <- matrix(0, nrow = 10, ncol = length(pca_grid))
@@ -231,6 +239,7 @@ acc_lda_mat <- matrix(0, nrow = 10, ncol = length(pca_grid))
 acc_knn <- numeric(10)
 acc_lda <- numeric(10)
 acc_tree <- numeric(10)
+
 #na wyniki predykcji
 wyniki_pred <- data.frame()
 
@@ -257,8 +266,7 @@ for(i in 1:10) {
   #pobranie 5 składowych dla zbioru uczącego
   X_train_pca <- pca_model$x[, 1:5]
   
-  #funkcja predict dla prcomp automatycznie ustandaryzuje X_val 
-  #parametrami ze zbioru uczącego, a potem zrobi projekcję na składowe
+  #funkcja predict dla prcomp automatycznie standaryzuje X_val parametrami ze zbioru uczącego, a potem zrobi projekcję na składowe
   X_val_pca <- predict(pca_model, newdata = X_val)[, 1:5]
   
   #złączenie z powrotem w ramki danych
@@ -268,7 +276,7 @@ for(i in 1:10) {
   #-----TRENOWANIE I PREDYKCJA MODELI
   
   #---Tuning kNN (pętla po siatce kombinacji knn_grid)
-  #--- ZMIENIONE: iteracja przez wszystkie wiersze siatki knn_grid
+  #iteracja przez wszystkie wiersze siatki knn_grid
   for(j in 1:nrow(knn_grid)) {
     knn_model_temp <- kknn(Class ~ ., train = train_pca, test = val_pca, 
                            k = knn_grid$k[j], kernel = as.character(knn_grid$kernel[j]))
@@ -319,7 +327,7 @@ for(i in 1:10) {
 
 #wybór najlepszych hiperparametrów ---
 mean_knn_acc <- colMeans(acc_knn_mat)
-#--- ZMIENIONE: wyciągnięcie optymalnego indeksu, a z niego k oraz kernel
+#wyciągnięcie optymalnego indeksu, a z niego k oraz kernel
 best_knn_idx <- which.max(mean_knn_acc)
 best_k <- knn_grid$k[best_knn_idx]
 best_kernel <- as.character(knn_grid$kernel[best_knn_idx])
@@ -334,13 +342,12 @@ best_cp_idx <- which.max(mean_tree_acc)
 best_cp <- cp_grid[best_cp_idx]
 
 cat("\n=== WYNIKI TUNINGU ===\n")
-#--- ZMIENIONE: wydruk uwzględnia najlepszy kernel
+#wydruk uwzględnia najlepszy kernel
 cat("Najlepsze parametry kNN: k =", best_k, ", kernel =", best_kernel, "(Średnie Accuracy:", round(mean_knn_acc[best_knn_idx], 4), ")\n")
 cat("Najlepsza l. składowych (PCA) dla LDA:", best_pca, "(Średnie Accuracy:", round(mean_lda_acc[best_pca_idx], 4), ")\n")
 cat("Najlepsze cp dla Drzewa:", best_cp, "(Średnie Accuracy:", round(mean_tree_acc[best_cp_idx], 4), ")\n\n")
 
 #nadpisanie wektorów wynikami z najlepszych modeli
-#--- ZMIENIONE: odwołanie do best_knn_idx
 acc_knn <- acc_knn_mat[, best_knn_idx]
 acc_lda <- acc_lda_mat[, best_pca_idx]
 acc_tree <- acc_tree_mat[, best_cp_idx]
@@ -370,7 +377,7 @@ library(ggplot2)
 library(tidyr)
 library(dplyr)
 
-#przekształcenie danych do formatu długiego (wymagane przez ggplot2)
+#przekształcenie danych do formatu długiego (wymóg ggplot2)
 wyniki_long <- pivot_longer(wyniki_cv, 
                             cols = c(KNN_Acc, LDA_Acc, Tree_Acc), 
                             names_to = "Model", 
@@ -429,7 +436,7 @@ cat("Liczba win, z którymi modele miały problem:", nrow(trudne_przypadki), "\n
 
 library(ggplot2)
 
-#przekształcenie do wykresu (zaznaczamy Dobrze/Źle)
+#przekształcenie do wykresu
 bledy_wykres <- trudne_przypadki %>%
   mutate(
     kNN  = ifelse(kNN == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie"),
@@ -455,41 +462,37 @@ ggplot(bledy_wykres, aes(x = as.factor(ID), y = Model, fill = Status)) +
 #wykres - przed i po tunignu
 library(ggplot2)
 
-# --- 1. WYCIĄGNIĘCIE WYNIKÓW BAZOWYCH (PRZED TUNINGIEM) ---
-# Szukamy dokładnego indeksu w nowej siatce knn_grid, gdzie k=5 i kernel="rectangular"
+# ---WYCIĄGNIĘCIE WYNIKÓW BAZOWYCH (PRZED TUNINGIEM)
+#szukamy dokładnego indeksu w nowej siatce knn_grid, gdzie k=5 i kernel="rectangular"
 idx_knn_bazowe <- which(knn_grid$k == 5 & knn_grid$kernel == "rectangular")
 acc_knn_przed <- mean_knn_acc[idx_knn_bazowe] 
 
-# domyślne cp dla rpart to 0.01. Znajdujemy w siatce wartość najbliższą tej liczbie
+#domyślne cp dla rpart to 0.01, więc znajdujemy w siatce wartość najbliższą tej liczbie
 idx_tree_bazowe <- which.min(abs(cp_grid - 0.01))
 acc_tree_przed <- mean_tree_acc[idx_tree_bazowe]
 
-# Wynik bazowy dla LDA (5 składowych PCA)
+#wynik bazowy dla LDA (5 składowych PCA)
 idx_lda_bazowe <- which(pca_grid == 5)
 acc_lda_przed <- mean_lda_acc[idx_lda_bazowe]
 
-# Wynik optymalny dla LDA z nowej macierzy
-acc_lda_po <- mean_lda_acc[best_pca_idx] 
-
-# --- 2. ZBUDOWANIE RAMKI DANYCH DO WYKRESU ---
+#ZBUDOWANIE RAMKI DANYCH DO WYKRESU ---
 df_porownanie <- data.frame(
   Model = rep(c("kNN", "Drzewo decyzyjne", "LDA"), each = 2),
   Etap = rep(c("1. Przed tuningiem", "2. Po tuningu"), times = 3),
-  # ZMIANA: użycie mean_knn_acc[best_knn_idx] zamiast best_k_idx
-  Accuracy = c(acc_knn_przed, mean_knn_acc[best_knn_idx],
+  Accuracy = c(acc_knn_przed, mean_knn_acc[best_knn_idx], #wyniki optymalne
                acc_tree_przed, mean_tree_acc[best_cp_idx],
-               acc_lda_przed, acc_lda_po)
+               acc_lda_przed,  mean_lda_acc[best_pca_idx])
 )
 
-# Zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności
+#zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności
 df_porownanie$Model <- factor(df_porownanie$Model, levels = c("Drzewo decyzyjne", "LDA", "kNN"))
 
-# --- 3. GENEROWANIE WYKRESU ---
+#WYKRES
 wykres_porownanie <- ggplot(df_porownanie, aes(x = Model, y = Accuracy, fill = Etap)) +
   geom_col(position = position_dodge(width = 0.8), width = 0.7, color = "black") +
   geom_text(aes(label = round(Accuracy, 4)), 
             position = position_dodge(width = 0.8), vjust = -0.5, size = 4, fontface = "bold") +
-  scale_fill_manual(values = c("1. Przed tuningiem" = "#95A5A6", "2. Po tuningu" = "#2ECC71")) +
+  scale_fill_manual(values = c("Przed tuningiem" = "#95A5A6", "Po tuningu" = "#2ECC71")) +
   coord_cartesian(ylim = c(0.7, 1.05)) +
   theme_minimal() +
   labs(title = "Wpływ optymalizacji hiperparametrów na dokładność modeli",
@@ -508,9 +511,9 @@ print(wykres_porownanie)
 ```{r}
 library(ggplot2)
 
-# --- Wykres tuningu kNN (Accuracy vs k vs kernel) ---
+#Wykres tuningu kNN (Accuracy vs k vs kernel)
 
-# 1. Przygotowanie danych do wykresu
+#przygotowanie danych
 # colMeans(acc_knn_mat) liczy średnią dla każdej z 32 kolumn (kombinacji k i kernel)
 df_knn_tuning <- data.frame(
   k = knn_grid$k,
@@ -518,13 +521,13 @@ df_knn_tuning <- data.frame(
   Accuracy = colMeans(acc_knn_mat)
 )
 
-# 2. Generowanie wykresu wieloliniowego
+#wykres
 wykres_knn_tuning <- ggplot(df_knn_tuning, aes(x = k, y = Accuracy, color = Kernel, group = Kernel)) +
   geom_line(linewidth = 1, alpha = 0.8) +
   geom_point(size = 3) +
-  # Wymuszenie wyświetlania tylko testowanych wartości 'k' na osi X
+  #wymuszenie wyświetlania tylko testowanych wartości 'k' na osi X
   scale_x_continuous(breaks = unique(df_knn_tuning$k)) + 
-  # Ręczne przypisanie palety kolorów dla rozróżnienia kerneli
+  #ręczne przypisanie palety kolorów dla rozróżnienia kerneli
   scale_color_manual(values = c("rectangular" = "#18BC9C", 
                                 "epanechnikov" = "#2C3E50", 
                                 "gaussian" = "#E74C3C", 
@@ -538,26 +541,25 @@ wykres_knn_tuning <- ggplot(df_knn_tuning, aes(x = k, y = Accuracy, color = Kern
   theme(legend.position = "right",
         plot.title = element_text(face = "bold"))
 
-# Wyświetlenie wykresu
 print(wykres_knn_tuning)
 ```
 
 ```{r}
 library(ggplot2)
 
-# --- Wykres tuningu LDA (Accuracy vs Liczba składowych PCA) ---
+#Wykres tuningu LDA (Accuracy vs Liczba składowych PCA)
 
-# 1. Przygotowanie danych do wykresu
+#dane
 df_lda_tuning <- data.frame(
   PCA_Components = pca_grid, 
   Accuracy = colMeans(acc_lda_mat)
 )
 
-# 2. Generowanie wykresu
+#wykres
 wykres_lda_tuning <- ggplot(df_lda_tuning, aes(x = PCA_Components, y = Accuracy)) +
   geom_line(color = "#2C3E50", linewidth = 1) +
   geom_point(color = "#2C3E50", size = 3) +
-  # Wymuszenie wyświetlania tylko całkowitych liczb na osi X
+  #wymuszenie wyświetlania tylko całkowitych liczb na osi X
   scale_x_continuous(breaks = pca_grid) + 
   theme_minimal() +
   labs(title = "Profil tuningu modelu LDA",
@@ -565,14 +567,16 @@ wykres_lda_tuning <- ggplot(df_lda_tuning, aes(x = PCA_Components, y = Accuracy)
        x = "Liczba uwzględnionych składowych głównych z PCA",
        y = "Średnie Accuracy z 10-fold CV")
 
-# Wyświetlenie wykresu
 print(wykres_lda_tuning)
 ```
 
 ```{r}
-# Wykres tuningu Drzewa (Accuracy vs cp)
+#Wykres tuningu Drzewa (Accuracy vs cp)
+
+#dane
 df_tree_tuning <- data.frame(cp = cp_grid, Accuracy = colMeans(acc_tree_mat))
 
+#wykres
 ggplot(df_tree_tuning, aes(x = cp, y = Accuracy)) +
   geom_line(color = "#6E1300", linewidth = 1) +
   geom_point(color = "#6E1300", size = 3) +
@@ -583,61 +587,42 @@ ggplot(df_tree_tuning, aes(x = cp, y = Accuracy)) +
 ```
 
 ```{r}
-# =========================================================
-# OSTATECZNA EWALUACJA MODELI NA ZBIORZE TESTOWYM (WINE_TEST)
-# =========================================================
 
-# 1. Przygotowanie pełnych danych treningowych i testowych w przestrzeni PCA (dla kNN i LDA)
+#EWALUACJA MODELI NA ZBIORZE TESTOWYM (WINE_TEST)
+
+#przygotowanie pełnych danych treningowych i testowych w przestrzeni PCA (dla kNN i LDA)
 X_train_full <- wine_train[, -1]
 Y_train_full <- wine_train$Class
 X_test_full  <- wine_test[, -1]
 Y_test_full  <- wine_test$Class
 
-# Budowa ostatecznego modelu PCA na całym zbiorze treningowym
+#budowa ostatecznego modelu PCA na całym zbiorze treningowym
 pca_full <- prcomp(X_train_full, center = TRUE, scale. = TRUE)
 
-# POPRAWKA: Projekcja na optymalną liczbę składowych głównych (best_pca zamiast poziomu 1:5)
+#projekcja na optymalną liczbę składowych głównych best_pca
 train_pca_full <- data.frame(Class = Y_train_full, pca_full$x[, 1:best_pca])
 test_pca_full  <- data.frame(Class = Y_test_full, predict(pca_full, newdata = X_test_full)[, 1:best_pca])
 
 
-# 2. Trenowanie finałowych modeli na całych dostępnych danych treningowych
+#trenowanie finałowych modeli na całych dostępnych danych treningowych
 
-# Finałowy model kNN (POPRAWKA: uwzględnia wybrane best_k oraz best_kernel)
+#Finałowy model kNN (uwzględnia wybrane best_k oraz best_kernel)
 final_knn <- kknn(Class ~ ., train = train_pca_full, test = test_pca_full, k = best_k, kernel = best_kernel)
 pred_test_knn <- final_knn$fitted.values
 
-# Finałowy model LDA (działa automatycznie na optymalnej liczby składowych z train_pca_full)
+#Finałowy model LDA (działa automatycznie na optymalnej liczby składowych z train_pca_full)
 final_lda <- lda(Class ~ ., data = train_pca_full)
 pred_test_lda <- predict(final_lda, newdata = test_pca_full)$class
 
-# Finałowy model Drzewa z Baggingiem (z optymalnym cp na surowych danych)
+#Finałowy model Drzewa z Baggingiem (z optymalnym cp na surowych danych)
 final_tree <- bagging(Class ~ ., data = wine_train, nbagg = 25, control = rpart.control(cp = best_cp))
 pred_test_tree <- predict(final_tree, newdata = wine_test)
 
 
-# 3. Wyświetlenie Macierzy Pomyłek i Wyników Dokładności
+#Wyświetlenie macierzy pomyłek i wyników Accuracy - graficzne
 
-cat("\n=========================================================\n")
-cat("WYNIKI KOŃCOWE NA NIEZALEŻNYM ZBIORZE TESTOWYM\n")
-cat("=========================================================\n")
 
-cat("\n[1] MACIERZ POMYŁEK DLA kNN:\n")
-cm_knn <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_knn)
-print(cm_knn)
-cat("Dokładność kNN na zbiorze testowym:", round(mean(pred_test_knn == Y_test_full), 4), "\n")
-
-cat("\n[2] MACIERZ POMYŁEK DLA LDA:\n")
-cm_lda <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_lda)
-print(cm_lda)
-cat("Dokładność LDA na zbiorze testowym:", round(mean(pred_test_lda == Y_test_full), 4), "\n")
-
-cat("\n[3] MACIERZ POMYŁEK DLA DRZEWA Z BAGGINGIEM:\n")
-cm_tree <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_tree)
-print(cm_tree)
-cat("Dokładność Drzewa na zbiorze testowym:", round(mean(pred_test_tree == Y_test_full), 4), "\n")
-
-# --- GRAFICZNE MACIERZE POMYŁEK NA JEDNYM WYKRESIE ---
+#GRAFICZNE MACIERZE POMYŁEK na jednym wykresie
 library(patchwork)
 library(ggplot2)
 
@@ -683,390 +668,3 @@ ggplot(df_plots_pca, aes(x = PC1, y = PC2, color = Class)) +
        x = "Pierwsza składowa główna (PC1)",
        y = "Druga składowa główna (PC2)")
 ```
-
-# WERSJE BEZ TUNINGU - BEZ OPTYMALIZACJI
-
-```{r}
-wine_df <- read.csv("wine.data", header=FALSE)
-
-colnames(wine_df) <- c(
-  "Class",
-  "Alcohol",
-  "Malic_acid",
-  "Ash",
-  "Alcalinity_of_ash",
-  "Magnesium",
-  "Total_phenols",
-  "Flavanoids",
-  "Nonflavanoid_phenols",
-  "Proanthocyanins",
-  "Color_intensity",
-  "Hue",
-  "OD280_OD315",
-  "Proline"
-)
-wine_df$Class <- as.factor(wine_df$Class)
-
-library(rsample)
-library(kknn)   #dla kNN
-library(MASS)   #dla LDA
-library(rpart)  #dla drzew decyzyjnych
-library(ipred)  #dla drzew - do baggingu
-
-set.seed(123)
-
-#KROSWALIDACJA (bezpośrednio na całym zbiorze, bez podziału 70/30)
-folds <- vfold_cv(wine_df, v = 10, strata = Class)
-
-#wektory do zapisu dokładności w każdym z 10 przebiegów pętli
-acc_knn <- numeric(10)
-acc_lda <- numeric(10)
-acc_tree <- numeric(10)
-
-#na wyniki predykcji (do macierzy błędów/heatmapy)
-wyniki_pred <- data.frame()
-
-# Definiujemy zakresy testowanych parametrów
-k_grid   <- c(1, 3, 5, 7, 9, 11, 13, 15)
-kernel_grid  <- c("rectangular", "epanechnikov", "gaussian", "optimal")
-pca_grid <- 2:8
-cp_grid  <- seq(0.001, 0.05, by = 0.005)
-
-# Tworzymy macierze, gdzie przechowamy wyniki z każdego folda (wiersze = foldy, kolumny = parametry)
-acc_knn_array <- array(0, dim = c(10, length(k_grid), length(kernel_grid)),
-                       dimnames = list(Fold = 1:10, k = k_grid, Kernel = kernel_grid))
-acc_lda_mat  <- matrix(0, nrow = 10, ncol = length(pca_grid))
-acc_tree_mat <- matrix(0, nrow = 10, ncol = length(cp_grid))
-
-# Zostawiamy Twoje wektory i ramkę na predykcje (będą zbierać wyniki dla wartości domyślnych)
-acc_knn <- numeric(10)
-acc_lda <- numeric(10)
-acc_tree <- numeric(10)
-wyniki_pred <- data.frame()
-
-#pętla kroswalidacji
-for(i in 1:10) {
-  
-  #wyciągnięcie podziału dla danej iteracji
-  fold_train <- analysis(folds$splits[[i]])
-  fold_val   <- assessment(folds$splits[[i]])
-  
-  #---DLA DRZEWA - dane surowe
-  train_unscaled <- fold_train
-  val_unscaled   <- fold_val
-  
-  #---STANDARYZACJA I PCA
-  X_train <- fold_train[, -1] 
-  Y_train <- fold_train$Class
-  X_val   <- fold_val[, -1]
-  Y_val   <- fold_val$Class
-  
-  #PCA z wbudowaną standaryzacją
-  pca_model <- prcomp(X_train, center = TRUE, scale. = TRUE)
-  
-  #pobranie 5 składowych dla zbioru uczącego
-  X_train_pca <- pca_model$x[, 1:5]
-  
-  #funkcja predict dla prcomp automatycznie ustandaryzuje X_val 
-  #parametrami ze zbioru uczącego, a potem zrobi projekcję na składowe
-  X_val_pca <- predict(pca_model, newdata = X_val)[, 1:5]
-  
-  #złączenie z powrotem w ramki danych
-  train_pca <- data.frame(Class = Y_train, X_train_pca)
-  val_pca   <- data.frame(Class = Y_val, X_val_pca)
-  
-  #-----TRENOWANIE I PREDYKCJA MODELI
-  
-  for(j in seq_along(k_grid)) {
-    for(m in seq_along(kernel_grid)) {
-      knn_model_temp <- kknn(Class ~ ., train = train_pca, test = val_pca, 
-                             k = k_grid[j], kernel = kernel_grid[m])
-      
-      # Zapis do tablicy trójwymiarowej
-      acc_knn_array[i, j, m] <- mean(knn_model_temp$fitted.values == Y_val)
-      
-      # Zapis wersji domyślnej (k=5 i kernel='rectangular') do Twojej heatmapy
-      if(k_grid[j] == 5 && kernel_grid[m] == "rectangular") {
-        knn_pred <- knn_model_temp$fitted.values
-      }
-    }
-  }
-  # Zapis ostatecznego wektora dla domyślnego modelu (k=5 to trzeci element, rectangular to pierwszy)
-  acc_knn[i] <- acc_knn_array[i, 3, 1]
-  
-  # 2. TESTOWANIE RÓŻNEJ LICZBY SKŁADOWYCH PCA DLA LDA
-  for(j in seq_along(pca_grid)) {
-    num_comp <- pca_grid[j]
-    train_pca_lda <- data.frame(Class = Y_train, pca_model$x[, 1:num_comp])
-    val_pca_lda   <- data.frame(Class = Y_val, predict(pca_model, newdata = X_val)[, 1:num_comp])
-    
-    lda_model_temp <- lda(Class ~ ., data = train_pca_lda)
-    lda_pred_temp  <- predict(lda_model_temp, newdata = val_pca_lda)$class
-    acc_lda_mat[i, j] <- mean(lda_pred_temp == Y_val)
-    
-    # Zapis wersji domyślnej (5 składowych)
-    if(num_comp == 5) lda_pred <- lda_pred_temp
-  }
-  acc_lda[i] <- mean(lda_pred == Y_val)
-  
-  # 3. TESTOWANIE RÓŻNYCH 'cp' DLA DRZEWA (na surowych danych)
-  for(j in seq_along(cp_grid)) {
-    tree_model_temp <- bagging(Class ~ ., data = train_unscaled, nbagg = 25, control = rpart.control(cp = cp_grid[j]))
-    tree_pred_temp  <- predict(tree_model_temp, newdata = val_unscaled)
-    acc_tree_mat[i, j] <- mean(tree_pred_temp == Y_val)
-    
-    # Zapis wersji domyślnej (użyjemy pierwszej predykcji jako reprezentatywnej do heatmapy)
-    if(j == 1) tree_pred <- tree_pred_temp
-  }
-  # Zapis ostatecznego wektora dla domyślnego cp = 0.01 (drugi element w siatce)
-  acc_tree[i] <- acc_tree_mat[i, 2]
-
-  wyniki_pred <- rbind(wyniki_pred, fold_results)
-}
-
-wyniki_cv <- data.frame(
-  Fold = 1:10,
-  KNN_Acc = acc_knn,
-  LDA_Acc = acc_lda,
-  Tree_Acc = acc_tree
-)
-
-cat("Wyniki z poszczególnych foldów:\n")
-print(round(wyniki_cv, 4))
-
-cat("\nŚrednie Accuracy z kroswalidacji:\n")
-cat("kNN:   ", round(mean(acc_knn), 4), "\n")
-cat("LDA:   ", round(mean(acc_lda), 4), "\n")
-cat("Tree:  ", round(mean(acc_tree), 4), "\n")
-```
-
-Wykresy
-
-```{r}
-{r}
-library(ggplot2)
-library(tidyr)
-library(dplyr)
-
-#przekształcenie danych do formatu długiego (wymagane przez ggplot2)
-wyniki_long <- pivot_longer(wyniki_cv, 
-                            cols = c(KNN_Acc, LDA_Acc, Tree_Acc), 
-                            names_to = "Model", 
-                            values_to = "Accuracy")
-
-#poprawa nazw modeli dla lepszej czytelności na wykresie
-wyniki_long$Model <- factor(wyniki_long$Model, 
-                            levels = c("LDA_Acc", "KNN_Acc", "Tree_Acc"),
-                            labels = c("LDA", "kNN", "Drzewo decyzyjne"))
-
-
-#WYKRES STABILNOŚCI NA FOLDACH
-wykres_box <- ggplot(wyniki_long, aes(x = reorder(Model, -Accuracy, FUN = median), y = Accuracy, fill = Model)) +
-  geom_boxplot(alpha = 0.8, outlier.colour = "#6E1300", outlier.size = 2) +
-  scale_fill_manual(values = c("LDA" = "#2C3E50", "kNN" = "#18BC9C", "Drzewo decyzyjne" = "#6E1300")) +
-  theme_minimal() +
-  labs(title = "Rozkład dokładności w 10-krotnej kroswalidacji",
-       subtitle = "Węższe pudełko oznacza większą stabilność modelu na różnych podpróbkach",
-       x = "Model",
-       y = "Accuracy") +
-  theme(legend.position = "none")
-
-print(wykres_box)
-```
-
-```{r}
-#ŚREDNIE ACCURACY
-wyniki_mean <- wyniki_long %>%
-  group_by(Model) %>%
-  summarise(Mean_Accuracy = mean(Accuracy))
-
-wykres_bar <- ggplot(wyniki_mean, aes(x = reorder(Model, -Mean_Accuracy), y = Mean_Accuracy, fill = Model)) +
-  geom_col(width = 0.5, alpha = 0.9) +
-  geom_text(aes(label = round(Mean_Accuracy, 4)), vjust = -1, fontface = "bold") +
-  scale_fill_manual(values = c("LDA" = "#2C3E50", "kNN" = "#18BC9C", "Drzewo decyzyjne" = "#6E1300")) +
-  coord_cartesian(ylim = c(0.7, 1.05)) + #skracamy oś OY dla uwydatnienia różnicy między modelami
-  theme_minimal() +
-  labs(title = "Średnia dokładność (Accuracy) modeli",
-       x = "Model",
-       y = "Średnie Accuracy") +
-  theme(legend.position = "none")
-
-print(wykres_bar)
-```
-
-```{r}
-#TRUDNE PRZYPADKI
-trudne_przypadki <- wyniki_pred %>%
-  filter(kNN != Rzeczywista_Klasa | LDA != Rzeczywista_Klasa | Tree != Rzeczywista_Klasa)
-
-cat("Liczba win, z którymi modele miały problem:", nrow(trudne_przypadki), "\n")
-
-library(ggplot2)
-
-#przekształcenie do wykresu (zaznaczamy Dobrze/Źle)
-bledy_wykres <- trudne_przypadki %>%
-  mutate(
-    kNN  = ifelse(kNN == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie"),
-    LDA  = ifelse(LDA == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie"),
-    Tree = ifelse(Tree == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie")
-  ) %>%
-  dplyr::select(ID, kNN, LDA, Tree) %>%  # <-- dodane dplyr::, inaczej scale() było z MASS i błąd
-  pivot_longer(-ID, names_to = "Model", values_to = "Status")
-
-#generowanie heatmapy dla błędów
-ggplot(bledy_wykres, aes(x = as.factor(ID), y = Model, fill = Status)) +
-  geom_tile(color = "white", linewidth = 0.5) +
-  scale_fill_manual(values = c("Niepoprawnie" = "#E74C3C", "Poprawnie" = "#2ECC71")) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8)) +
-  labs(title = "Mapa błędów na poszczególnych obserwacjach",
-       subtitle = "Wyświetlono tylko obserwacje, na których pomylił się minimum jeden model",
-       x = "ID Obserwacji (Wina)",
-       y = "Algorytm")
-```
-
-```{r}
-# Uśrednienie wyników po 1. wymiarze (foldach) -> otrzymujemy macierz [k x Kernel]
-mean_knn_results <- apply(acc_knn_array, c(2, 3), mean)
-
-# Przekształcenie do ramki danych dla ggplot2
-df_knn_wykres <- expand.grid(k = k_grid, Kernel = kernel_grid)
-df_knn_wykres$Accuracy <- as.vector(mean_knn_results)
-
-# Wykres
-ggplot(df_knn_wykres, aes(x = k, y = Accuracy, color = Kernel, group = Kernel)) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2.5) +
-  scale_x_continuous(breaks = k_grid) +
-  theme_minimal() +
-  labs(title = "Wpływ liczby sąsiadów i rodzaju jądra na Accuracy kNN",
-       x = "Liczba sąsiadów (k)",
-       y = "Średnie Accuracy z 10-fold CV")
-```
-
-```{r}
-library(ggplot2)
-
-df_lda_tuning <- data.frame(
-  PCA_Components = pca_grid, 
-  Accuracy = colMeans(acc_lda_mat)
-)
-
-wykres_lda_tuning <- ggplot(df_lda_tuning, aes(x = PCA_Components, y = Accuracy)) +
-  geom_line(color = "#34495E", linewidth = 1) +
-  geom_point(color = "#34495E", size = 3) +
-  scale_x_continuous(breaks = pca_grid) + 
-  theme_minimal() +
-  labs(title = "Profil tuningu modelu LDA",
-       subtitle = "Wpływ liczby składowych głównych (PCA) na dokładność",
-       x = "Liczba składowych głównych PCA",
-       y = "Średnie Accuracy z 10-fold CV")
-
-print(wykres_lda_tuning)
-```
-
-```{r}
-library(ggplot2)
-
-df_tree_tuning <- data.frame(
-  cp = cp_grid, 
-  Accuracy = colMeans(acc_tree_mat)
-)
-
-wykres_tree_tuning <- ggplot(df_tree_tuning, aes(x = cp, y = Accuracy)) +
-  geom_line(color = "#8E44AD", linewidth = 1) +
-  geom_point(color = "#8E44AD", size = 3) +
-  theme_minimal() +
-  labs(title = "Profil tuningu parametru złożoności drzewa (cp)",
-       subtitle = "Wpływ parametru cp w algorytmie baggingu na dokładność",
-       x = "Parametr złożoności (cp)",
-       y = "Średnie Accuracy z 10-fold CV")
-
-print(wykres_tree_tuning)
-```
-
-```{r}
-library(patchwork)
-library(ggplot2)
-
-# Macierze tekstowe z ostatecznych wyników
-cm_knn  <- table(Rzeczywista = wyniki_pred$Rzeczywista_Klasa, Przewidywana = wyniki_pred$kNN)
-cm_lda  <- table(Rzeczywista = wyniki_pred$Rzeczywista_Klasa, Przewidywana = wyniki_pred$LDA)
-cm_tree <- table(Rzeczywista = wyniki_pred$Rzeczywista_Klasa, Przewidywana = wyniki_pred$Tree)
-
-# Funkcja rysująca
-rysuj_macierz <- function(cm, tytul, kolor_glowny) {
-  cm_df <- as.data.frame(cm)
-  cm_df$Przewidywana <- factor(cm_df$Przewidywana, levels = rev(levels(cm_df$Przewidywana)))
-  
-  ggplot(cm_df, aes(x = Rzeczywista, y = Przewidywana, fill = Freq)) +
-    geom_tile(color = "black", linewidth = 0.5) +
-    geom_text(aes(label = Freq), size = 5, fontface = "bold") +
-    scale_fill_gradient(low = "white", high = kolor_glowny) +
-    theme_minimal() +
-    labs(title = tytul, x = "Rzeczywista", y = "Przewidywana") +
-    theme(plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
-          legend.position = "none")
-}
-
-wykres_cm_knn  <- rysuj_macierz(cm_knn, "kNN", "#1ABC9C")
-wykres_cm_lda  <- rysuj_macierz(cm_lda, "LDA", "#34495E")
-wykres_cm_tree <- rysuj_macierz(cm_tree, "Drzewo z Baggingiem", "#8E44AD")
-
-# Połączenie w jeden panel
-wykres_zbiorczy_cm <- wykres_cm_knn + wykres_cm_lda + wykres_cm_tree +
-  plot_layout(ncol = 3) +
-  plot_annotation(
-    title = "Porównanie Macierzy Pomyłek (Ostateczne wyniki z 10-fold CV)",
-    theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))
-  )
-
-print(wykres_zbiorczy_cm)
-```
-
-```{r}
-# --- WIZUALIZACJA ZBIORU W PRZESTRZENI PCA ---
-
-# Budujemy globalny model PCA na wszystkich cechach (pomijając kolumnę Class)
-pca_global <- prcomp(wine_df[, -1], center = TRUE, scale. = TRUE)
-
-# Tworzymy ramkę danych z dwoma pierwszymi składowymi i prawdziwymi klasami
-df_plots_pca <- data.frame(
-  Class = wine_df$Class, 
-  pca_global$x[, 1:2]
-)
-
-# Generowanie wykresu
-ggplot(df_plots_pca, aes(x = PC1, y = PC2, color = Class)) +
-  geom_point(size = 3, alpha = 0.8) +
-  theme_minimal() +
-  scale_color_manual(values = c("1" = "#2C3E50", "2" = "#18BC9C", "3" = "#E74C3C")) +
-  labs(title = "Wizualizacja zbioru Wine w przestrzeni dwóch pierwszych składowych głównych (PCA)",
-       subtitle = "Wyraźna separacja geometryczna klas wyjaśnia wysoką skuteczność modeli kNN i LDA",
-       x = "Pierwsza składowa główna (PC1)",
-       y = "Druga składowa główna (PC2)")
-```
-
--   
-
-# TO DO
-
--   ZMIENIĆ KOLEJNOŚĆ W EDA
-
-    -   metodologię wyjaśnić więcej rzeczy
-
-    -   lepsze kom
-
-    -   raport
-
-## PONADTO - UWAGI PROWADZĄCEGO
-
--   Raport - może podobny do samego artykułu naukowego, a może po prostu tutaj cały kod z #\| echo: false
-
--   Raport w LATEX
-
--   modele omawiane na zajęciach - git
-
--   UZASADNIENIE DECYZJI METODOLOGICZNYCH (w zasadzie wszystkiego - wybór miary dopasowania, schemat kroswalidacji itp)
-
--   Więcej nie znaczy lepiej!
