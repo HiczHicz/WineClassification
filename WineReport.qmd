@@ -27,13 +27,13 @@ Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wcią�
 
 ## Metodologia
 
-**1. Wstępna analiza danych (EDA)**
+**1. Wstępna analiza danych**
 
-Prace nad modelowaniem poprzedzono dogłębną eksploracją zbioru danych, aby zrozumieć jego strukturę i zidentyfikować potencjalne problemy. W ramach analizy zrealizowano następujące kroki:
+Prace nad modelem poprzedzono analizą danych, w celu głębszego poznania struktury danych. W ramach analizy zrealizowano następujące kroki:
 
 -   **Weryfikacja braków danych:** Sprawdzono kompletność zbioru, aby uniknąć błędów w działaniu algorytmów.
 
--   **Analiza zmiennej celu:** Zweryfikowano stopień zrównoważenia klas, co jest kluczowe dla wyboru odpowiednich miar oceny modeli (np. Accuracy).
+-   **Analiza zmiennej celu:** Zweryfikowano stopień zrównoważenia klas, co jest kluczowe dla wyboru odpowiednich miar oceny modeli.
 
 -   **Badanie rozkładów i wartości odstających:** Przeanalizowano kształt rozkładów poszczególnych predyktorów oraz zidentyfikowano wartości odstające (outliery), które mogą negatywnie wpływać na wrażliwe modele.
 
@@ -108,6 +108,34 @@ ggplot(wine_df, aes(x = Class, fill=as.factor(Class))) +
   labs(title = "Rozkład klas w zbiorze Wine",
        x = "Klasa",
        y = "Liczba obserwacji",
+       fill = "Klasa")
+```
+
+3.  **Badanie rozkładów zmiennych.** Można na ich podstawie wyznaczyć parametry, które izolują dane klasy:
+
+-   *Proline* ma znacznie wyższe wartości w **klasie 1** w porównaniu z pozostałymi klasami. *Malic_acid* ma bardzo niską wariancję dla klasy 1.
+
+-   *Alcohol, Color_intensity* są najniższe w **klasie 2.**
+
+-   W **klasie 3**, *Flavanoids, Hue, Total_Phenols i OD280_OD315* mają niskie wartości tych parametrów.\
+
+```{r}
+library(tidyr) #ZŁY KOLOR XD
+
+#dane w formacie długim - potrzebne do wygenerowania wielu wykresów
+wine_long <- pivot_longer(wine_df, 
+                          cols = -Class, 
+                          names_to = "Variable", 
+                          values_to = "Value")
+
+
+ggplot(wine_long, aes(x = Value, fill = Class, group = Class)) +
+  geom_density(alpha = 0.4) + 
+  facet_wrap(~Variable, scales = "free") + 
+  theme_minimal() +
+  labs(title = "Rozkłady cech fizykochemicznych w podziale na klasy win",
+       x = "Wartość",
+       y = "Gęstość",
        fill = "Klasa")
 ```
 
