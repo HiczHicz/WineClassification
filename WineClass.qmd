@@ -235,7 +235,7 @@ tree_grid<-expand.grid(cp=cp_grid, minsplit=minsplit_grid)
 
 
 #siatka dla LDA (bez sensu optymalizować PCA, ew prior)
-pca_grid <- 2:8 
+pca_grid <- 2:13
 
 #macierze na wyniki tuningu (wiersze = foldy, kolumny = hiperparametry)
 #liczba kolumn zależy teraz od liczby wszystkich kombinacji w knn_grid

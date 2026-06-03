@@ -14,22 +14,17 @@ execute:
 
 ## Wstęp
 
-Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierającym 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
+Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierającego 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
 
 [^1]: Aeberhard, S. & Forina, M. (1992). Wine \[Dataset\]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5PC7J>)
 
-Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wciąż być używany do testowania metod klasyfikacji, zwłaszcza z powodu wykonanej standaryzacji (z-score) danych, co usuwa wpływ jednostek na wyniki algorytmów.
-
-Źródła\
-(a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
-(b) Stefan Aeberhard, email: stefan\@coral.cs.jcu.edu.au"\
-(c) July 1991"
+Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wciąż być używany do testowania metod klasyfikacji.
 
 ## Metodologia
 
 **1. Wstępna analiza danych**
 
-Prace nad modelem poprzedzono analizą danych, w celu głębszego poznania struktury danych. W ramach analizy zrealizowano następujące kroki:
+Prace nad modelem poprzedzono analizą danych, w celu głębszego poznania ich struktury. W ramach analizy zrealizowano następujące kroki:
 
 -   **Weryfikacja braków danych:** Sprawdzono kompletność zbioru, aby uniknąć błędów w działaniu algorytmów.
 
@@ -47,23 +42,24 @@ Ze względu na planowany tuning hiperparametrów, na zbiorze uczącym zastosowan
 
 Szczególną uwagę zwrócono na wyeliminowanie ryzyka wycieku danych (*data leakage*). Wszelkie transformacje (takie jak standaryzacja czy redukcja wymiarowości) były uczone i wyliczane **wyłącznie na 9 foldach treningowych** w każdej iteracji, a następnie jedynie aplikowane na 1 foldzie walidacyjnym. Analogiczne podejście zastosowano dla końcowego zbioru testowego – został on przetransformowany przy użyciu średnich i odchyleń standardowych wyliczonych wyłącznie na pełnym zbiorze uczącym. Dzięki temu zbiór walidacyjny i testowy dopasowują się do skali, której nauczył się model, zachowując pełną izolację informacji.
 
-**3. Algorytmy predykcyjne i transformacje**
+**3. Uzasadnienie wyboru modeli**
 
-W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każde wymagało odpowiedniego przygotowania danych wejściowych:
+W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każde wymagało odpowiedniego przygotowania danych wejściowych. Poniżej przedstawiamy uzasadnienie wyboru danego modelu oraz transformacje przeprowadzone na danych.
 
 -   **k-Najbliższych Sąsiadów (kNN):**
 
-    Algorytm oparty na pomiarze odległości euklidesowej, silnie wrażliwy na różnice w rzędach wielkości zmiennych oraz tzw. klątwę wymiarowości. Z tego powodu dane wejściowe poddano **standaryzacji**, a następnie zredukowano przestrzeń cech za pomocą **Analizy Głównych Składowych (PCA)**. Model był poddany optymalizacji, w ramach której tuningowano hiperparametr $k$ (liczbę rozpatrywanych sąsiadów).
+    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych). W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów \$k\$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
 
 -   **Liniowa Analiza Dyskryminacyjna (LDA):**
 
-    Podobnie jak w przypadku kNN, model LDA jest wrażliwy na współliniowość i skalę, dlatego zasilony został danymi po wcześniejszej standaryzacji oraz transformacji PCA.
+    Zbiór danych Wine charakteryzuje się niską liczbą obserwacji, a na podstawie wstępnej analizy (w tym wykresu rzutu na dwie pierwsze składowe PCA) można wnioskować, że klasy są odseparowane geometrycznie. Przyjęto założenia - rozkład predyktorów wewnątrz każdej klasy jest zbliżony do rozkładu normalnego oraz rozkłady mają taką samą wariancję, różniąc się jedynie średnimi.\
+    W pierwotnej fazie projektu dane wejściowe dla modelu LDA poddano transformacji PCA (analogicznie jak w przypadku kNN). Warto jednak wspomnieć, **wstępne stosowanie PCA dla algorytmu LDA jest teoretycznie nieefektywne**. LDA samodzielnie wyznacza optymalne hiperpłaszczyzny rozdzielające. Ostatecznie zdecydowano się na przeprowadzenie eksperymentu numerycznego - pętli walidacyjnej poddano tuningowi liczbę składowych głównych PCA przekazywanych do modelu LDA (testując zakres od 2 do 13 składowych).
 
 -   **Drzewo decyzyjne:**
 
-    Dzięki specyfice algorytmów opartych na podziałach węzłów (niewrażliwość na monotoniczne transformacje i różnice w skalach), zrezygnowano ze standaryzacji oraz PCA. Model trenowano na **surowych danych**. W celu zabezpieczenia modelu przed przeuczeniem (*overfittingiem*), przeprowadzono tuning parametru złożoności drzewa ($cp$).
+    Dla zbioru danych Wine, charakteryzującego się predyktorami o skrajnie zróżnicowanych przedziałach liczbowych (od ułamkowych zawartości fenoli po tysięczne wartości proliny), model ten zastosowano ze względu na jego naturalną zdolność do bezpośredniej pracy na cechach o różnych skalach bez ryzyka dominacji jednych zmiennych nad innymi, co pozwoliło całkowicie pominąć etap standaryzacji i PCA. Podejście zespołowe wybrano po to, by sprawdzić skuteczność nieliniowych, ortogonalnych podziałów w surowej przestrzeni cech. Zastosowanie baggingu miało na celu uśrednienie wyników wielu głębokich, celowo przeuczonych drzew składowych, co drastycznie obniżyło wariancję modelu i zapewniło stabilność predykcji przy małej liczbie obserwacji. W celu optymalizacji struktury drzew w komitecie przeprowadzono dwuwymiarowy tuning siatki parametru złożoności (\$cp\$) oraz minimalnej liczby obserwacji do podziału (\$minsplit\$) \#### SPRAWDZIĆ CZY SIĘ RENDERUJE LATEX
 
-## Analiza struktury danych Wine
+## Wyniki analizy struktury danych Wine
 
 W trakcie wstępnej analizy danych postępowałyśmy następująco:
 
@@ -139,6 +135,8 @@ ggplot(wine_long, aes(x = Value, fill = Class, group = Class)) +
        fill = "Klasa")
 ```
 
+3.  **Badanie rozkładów i wartości odstających.**
+
 3.  **Stworzenie wykresu korelacji.** Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem trzech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
 
 -   klaster 1 (lewy górny róg):
@@ -188,11 +186,7 @@ Ponadto, z klastrów można wyciągnąć następujące wnioski:
 
 ## Interpretacja modeli
 
-You can add options to executable code like this
-
-```{r}
-#| echo: false
-2 * 2
-```
-
-The `echo: false` option disables the printing of code (only output is displayed).
+Źródła\
+(a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
+(b) Stefan Aeberhard, email: stefan\@coral.cs.jcu.edu.au"\
+(c) July 1991"
