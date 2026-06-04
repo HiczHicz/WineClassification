@@ -4,7 +4,8 @@ author: "Martyna Pieczka, Magdalena Chamera"
 format: 
   pdf:
     number-sections: true
-    fig-device: cairo
+    fig-device: ragg_png
+    pdf-engine: xelatex
 editor: visual
 execute:
   echo: false
@@ -13,7 +14,7 @@ execute:
   fig-align: "center"
   fig-width: 8
   fig-height: 5
-  cache: true #jeśli kod taki sam, nie uruchamia go ponownie
+  cache: false #jeśli kod taki sam, nie uruchamia go ponownie
 ---
 
 # Wstęp
@@ -76,12 +77,17 @@ Badanie wartości odstających daje następujące wnioski:
 
 
 #wczytanie danych
-library(showtext)
-showtext_auto()
+
 library(ggplot2)
 library(tidyr)
 
-showtext_auto()
+library(ragg)
+
+#konieczne żeby poprawnie działały polskie znaki
+knitr::opts_chunk$set( 
+  dev = "ragg_png"
+)
+
 
 wine_df <- read.csv("wine.data", header=FALSE)
 
@@ -116,9 +122,20 @@ wine_train <- training(wine_split)
 wine_test  <- testing(wine_split)
 
 
-# --- 2. WCZYTANIE WYNIKÓW Z PLIKU RDS ---
+#WCZYTANIE WYNIKÓW Z PLIKU RDS ---
 wyniki <- readRDS("wyniki_modelowania.rds")
 list2env(wyniki, envir = .GlobalEnv)
+
+#przekształcenie danych do formatu długiego (wymóg ggplot2)
+wyniki_long <- pivot_longer(wyniki_cv, 
+                            cols = c(KNN_Acc, LDA_Acc, Tree_Acc), 
+                            names_to = "Model", 
+                            values_to = "Accuracy")
+
+#poprawa nazw modeli dla lepszej czytelności na wykresie
+wyniki_long$Model <- factor(wyniki_long$Model, 
+                            levels = c("LDA_Acc", "KNN_Acc", "Tree_Acc"),
+                            labels = c("LDA", "kNN", "Drzewo decyzyjne"))
 ```
 
 ```{r}
@@ -257,7 +274,7 @@ Bezpośrednie zyski z przeprowadzonego procesu dobrze obrazuje wykres słupkowy 
 
 ```{r}
 #| layout-ncol: 3
-#| fig-height: 5
+#| fig-height: 7
 #| fig-width: 6
 #| fig-pos: "H"
 
@@ -371,7 +388,7 @@ wykres_porownanie <- ggplot(df_porownanie, aes(x = Model, y = Accuracy, fill = E
   coord_cartesian(ylim = c(0.7, 1.05)) +
   theme_minimal() +
   labs(title = "Wpływ optymalizacji hiperparametrów na dokładność modeli",
-       # DODANE: minsplit, przełamanie wiersza \n, skrócenie tekstu
+       #minsplit, przełamanie wiersza \n, skrócenie tekstu
        subtitle = paste("kNN (bazowe k=5 -> opt. k=", best_k, ") | Drzewo (bazowe cp~0.01, minsplit=20 -> opt. cp=", best_cp, ", minsplit=", best_minsplit, ")\n",
                         "LDA (PCA=5 -> opt. PCA=", best_pca, ")", sep=""),
        x = "Algorytm",
@@ -386,13 +403,82 @@ wykres_porownanie <- ggplot(df_porownanie, aes(x = Model, y = Accuracy, fill = E
 print(wykres_porownanie)
 ```
 
-# TO DO:
+## Ocena stabilności i wyniki kroswalidacji
 
--   
+Po ustaleniu optymalnych hiperparametrów, dokładna ocena zachowania modeli na danych treningowych została przeprowadzona przy użyciu pełnych wyników 10-krotnej kroswalidacji. Analiza ta pozwala ocenić nie tylko ogólną skuteczność, ale przede wszystkim stabilność algorytmów przy zmianie podpróbek danych.
 
--   w modelach zacząć od accuracy i najlepszych parametrów, potem analiza hiperparametrów,
+```{r}
 
-Źródła\
-(a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
-(b) Stefan Aeberhard, email: stefan\@coral.cs.jcu.edu.au"\
-(c) July 1991"
+#WYKRES STABILNOŚCI NA FOLDACH
+wykres_box <- ggplot(wyniki_long, aes(x = reorder(Model, -Accuracy, FUN = median), y = Accuracy, fill = Model)) +
+  geom_boxplot(alpha = 0.8, outlier.colour = "#6E1300", outlier.size = 2) +
+  scale_fill_manual(values = c("LDA" = "#2C3E50", "kNN" = "#18BC9C", "Drzewo decyzyjne" = "#6E1300")) +
+  theme_minimal() +
+  labs(title = "Rozkład dokładności w 10-krotnej kroswalidacji",
+       subtitle = "Węższe pudełko oznacza większą stabilność modelu na różnych podpróbkach",
+       x = "Model",
+       y = "Accuracy") +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold")
+    )
+
+print(wykres_box)
+```
+
+Głównym wnioskiem płynącym z analizy rozkładu celności jest **różnica w wariancji modeli**:
+
+-   **LDA i kNN wykazują ekstremalną stabilność.** Pudełka tych wykresów są "ściśnięte" na samej górze osi, co oznacza, że w większości foldów modele te osiągnęły bezbłędną klasyfikację. Pojedyncze punkty odstające na poziomie ok. 0.92 reprezentują foldy, w których algorytmy pomyliły się o jedną obserwację.
+
+-   **Drzewo decyzyjne (bagging) charakteryzuje się bardzo wysoką wariancją.** Szerokie pudełko (od 0.91 do 0.98) oraz długi dolny wąs sięgający wartości 0.83 pokazują, że model ten jest silnie uzależniony od losowego składu podpróbek walidacyjnych. Ze względu na małą liczebność pojedynczego foldu (ok. 12 obserwacji), ortogonalne cięcia przestrzeni przez drzewa okazały się mało odporne na zmienności wartości.
+
+### Szczegółowa mapa błędów klasyfikacji
+
+Aby zrozumieć mechanizm potknięć poszczególnych algorytmów, wyizolowano i przeanalizowano wyłącznie te obserwacje z pętli kroswalidacji, na których pomylił się minimum jeden model.
+
+```{r}
+
+#TRUDNE PRZYPADKI
+trudne_przypadki <- wyniki_pred %>%
+  dplyr::filter(kNN != Rzeczywista_Klasa | LDA != Rzeczywista_Klasa | Tree != Rzeczywista_Klasa)
+
+#cat("Liczba win, z którymi modele miały problem:", nrow(trudne_przypadki), "\n")
+
+library(ggplot2)
+
+#przekształcenie do wykresu
+bledy_wykres <- trudne_przypadki %>%
+  dplyr::mutate(
+    kNN  = ifelse(kNN == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie"),
+    LDA  = ifelse(LDA == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie"),
+    Tree = ifelse(Tree == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie")
+  ) %>%
+  dplyr::select(ID, kNN, LDA, Tree) %>%  # <-- dodane dplyr::, inaczej scale() było z MASS i błąd
+  pivot_longer(-ID, names_to = "Model", values_to = "Status")
+
+#generowanie heatmapy dla błędów
+ggplot(bledy_wykres, aes(x = as.factor(ID), y = Model, fill = Status)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  scale_fill_manual(values = c("Niepoprawnie" = "#E74C3C", "Poprawnie" = "#2ECC71")) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8),
+    plot.title = element_text(face = "bold")
+    ) +
+  labs(title = "Mapa błędów na poszczególnych obserwacjach",
+       subtitle = "Wyświetlono tylko obserwacje, na których pomylił się minimum jeden model",
+       x = "ID Obserwacji (Wina)",
+       y = "Algorytm")
+```
+
+Wizualizacja ta ujawnia unikalne cechy geometryczne klasyfikatorów oraz obrazuje różnice w ich stabilności:
+
+-   **Dominacja błędów drzewa decyzyjnego:** w pierwszej kolejności widać wyraźnie, że przeważająca większość czerwonych kafelków należy do drzewa. Wina o numerach 24, 25, 44, 67, 74, 82, 84, 119 i 151 zostały bezbłędnie sklasyfikowane przez modele kNN i LDA, podczas gdy drzewo przypisało je do złych klas. Potwierdza to wcześniejszy wniosek z wykresów pudełkowych – ortogonalne cięcia przestrzeni słabo radzą sobie z wyznaczaniem płynnych granic dla tego zbioru.
+
+-   **Rozbieżność w trudnych przypadkach (wina nr 26 i 62):** szczególnie ciekawe są obserwacje, przy których potknęły się jednocześnie dwa algorytmy o zupełnie innej charakterystyce:
+
+    -   Dla wina nr **62** zawiodło zarówno drzewo decyzyjne, jak i globalny model LDA, natomiast kNN zidentyfikował je poprawnie. Świadczy to o nietypowym ułożeniu tego punktu, które wymagało elastyczności algorytmu opartego na najbliższym sąsiedztwie.
+
+    -   Z kolei w przypadku wina nr **26** zawiodło drzewo i kNN, podczas gdy liniowa płaszczyzna dyskryminacyjna LDA okazała się trafna.
+
+-   **Odosobnione potknięcia najlepszych modeli:** nawet wiodące algorytmy mają swoje słabe punkty. LDA jako jedyny pomylił się przy obserwacji 97, natomiast kNN jako jedyny błędnie sklasyfikował wino nr 135.

@@ -235,15 +235,15 @@ wine_test  <- testing(wine_split)
 #KROSWALIDACJA
 folds <- vfold_cv(wine_train, v = 10, strata = Class)
 
-#siatki do tuningu hiperparametrów - WIĘKSZE WARTOŚCI K!!!!!!!!!!!!!!!!!========
-k_grid <- c(1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25)
+#siatki do tuningu hiperparametrów
+k_grid <- c(1, 3, 5, 7, 9, 11, 13, 15)
 #siatka kerneli i połączenie w jedną siatkę (kombinacje)
 kernel_grid <- c("rectangular", "epanechnikov", "gaussian", "optimal")
 knn_grid <- expand.grid(k = k_grid, kernel = kernel_grid)
 
 #siatka dla drzew
 cp_grid <- seq(0, 0.04, by = 0.005)
-minsplit_grid <- c(2,3,4,5)
+minsplit_grid <- c(2,3, 4, 5,6,7, 8)
 tree_grid<-expand.grid(cp=cp_grid, minsplit=minsplit_grid)
 
 
@@ -324,7 +324,7 @@ for(i in 1:10) {
   #---Tuning Drzewa decyzyjnego (pętla po siatce tree_grid)
   for(j in 1:nrow(tree_grid)) {
     #przekazanie parametru cp, minsplit przez rpart.control wewnątrz funkcji bagging
-    tree_model_temp <- bagging(Class ~ ., data = train_unscaled, nbagg = 50, control = rpart.control(cp = tree_grid$cp[j], minsplit = tree_grid$minsplit[j])) ###POGRZEBAĆ W RPART CONTROL - WIĘCEJ RZECZY, ew overfitting i pruning
+    tree_model_temp <- bagging(Class ~ ., data = train_unscaled, nbagg = 100, control = rpart.control(cp = tree_grid$cp[j], minsplit = tree_grid$minsplit[j])) ###POGRZEBAĆ W RPART CONTROL - WIĘCEJ RZECZY, ew overfitting i pruning
     tree_pred_temp  <- predict(tree_model_temp, newdata = val_unscaled)
     acc_tree_mat[i, j] <- mean(tree_pred_temp == Y_val)
     #zapis predykcji dla pierwszej wartości z siatki (na potrzeby tabeli wyniki_pred i heatmapy)
@@ -388,11 +388,35 @@ cat("\nŚrednie Accuracy z kroswalidacji:\n")
 cat("kNN:   ", round(mean(acc_knn), 4), "\n")
 cat("LDA:   ", round(mean(acc_lda), 4), "\n")
 cat("Tree:  ", round(mean(acc_tree), 4), "\n")
+
+#obliczenia.R - potrzebne, żeby móc szybciej wczytywać dane w pliku WineReport.qmd, w którym powstaje raport
+wyniki_lista <- list(
+  wyniki_cv = wyniki_cv,
+  wyniki_pred = wyniki_pred, # <-- TA LINIA JEST KLUCZOWA!
+  knn_grid = knn_grid,
+  tree_grid = tree_grid,
+  pca_grid = pca_grid,
+  best_k = best_k,
+  best_kernel = best_kernel,
+  best_pca = best_pca,
+  best_cp = best_cp,
+  best_minsplit = best_minsplit,
+  mean_knn_acc = mean_knn_acc,
+  mean_tree_acc = mean_tree_acc,
+  mean_lda_acc = mean_lda_acc,
+  best_knn_idx = best_knn_idx,
+  best_pca_idx = best_pca_idx,
+  best_tree_idx = best_tree_idx
+)
+
+saveRDS(wyniki_lista, "wyniki_modelowania.rds")
+
+saveRDS(wyniki_lista, "wyniki_modelowania.rds")
 ```
 
 ## Wykresy
 
-Wykresy
+Przekształcenie do formatu długiego i biblioteki
 
 ```{r}
 library(ggplot2)
@@ -410,6 +434,13 @@ wyniki_long$Model <- factor(wyniki_long$Model,
                             levels = c("LDA_Acc", "KNN_Acc", "Tree_Acc"),
                             labels = c("LDA", "kNN", "Drzewo decyzyjne"))
 
+
+
+```
+
+Wykresy
+
+```{r}
 
 #WYKRES STABILNOŚCI NA FOLDACH
 wykres_box <- ggplot(wyniki_long, aes(x = reorder(Model, -Accuracy, FUN = median), y = Accuracy, fill = Model)) +
@@ -505,8 +536,8 @@ df_porownanie <- data.frame(
                acc_lda_przed,  mean_lda_acc[best_pca_idx])
 )
 
-#zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności
-df_porownanie$Model <- factor(df_porownanie$Model, levels = c("Drzewo decyzyjne", "LDA", "kNN"))
+#zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności - po prawej najlepszy model
+df_porownanie$Model <- factor(df_porownanie$Model, levels = c("Drzewo decyzyjne", "kNN", "LDA"))
 
 # DODANE: wymuszenie kolejności dla Etapu
 df_porownanie$Etap <- factor(df_porownanie$Etap, levels = c("Przed tuningiem", "Po tuningu"))
@@ -607,7 +638,7 @@ df_tree_tuning <- data.frame(
 )
 
 # wykres
-ggplot(df_tree_tuning, aes(x = cp, y = Accuracy, color = minsplit, group = minsplit)) +
+wykres_tree_tuning <- ggplot(df_tree_tuning, aes(x = cp, y = Accuracy, color = minsplit, group = minsplit)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2.5) +
   scale_color_brewer(palette = "Reds") + 
@@ -617,6 +648,8 @@ ggplot(df_tree_tuning, aes(x = cp, y = Accuracy, color = minsplit, group = minsp
        y = "Średnie Accuracy z 10-fold CV",
        color = "Parametr\nminsplit") +
   theme(legend.position = "right")
+
+print(wykres_tree_tuning)
 ```
 
 ```{r}
