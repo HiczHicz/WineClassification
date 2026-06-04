@@ -41,7 +41,7 @@ W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każd
 
 -   **k-Najbliższych Sąsiadów (kNN):**
 
-    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych). W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów \$k\$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
+    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych), co wyjaśnia 80% całkowitej wariancji zbioru, pozwalając zredukować wymiar, odrzucając jedynie szum informacyjny. W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów \$k\$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
 
 -   **Liniowa Analiza Dyskryminacyjna (LDA):**
 
@@ -56,7 +56,9 @@ W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każd
 
 ## **Sprawdzenie brakujących wartości i zrównoważenia klas.**
 
-Zbiór danych nie ma brakujących wartości. Zbiór jest stosunkowo zbalansowany, z lekką dominacją klasy 2 (71 obserwacji) i najmniejszą reprezentacją klasy 3 (48 obserwacji). Ta proporcja uzasadnia wybór celności (Accuracy) jako odpowiedniej miary oceny jakości modeli.**Badanie rozkładów i wartości odstających zmiennych.**
+Zbiór danych nie ma brakujących wartości. Zbiór jest stosunkowo zbalansowany, z lekką dominacją klasy 2 (71 obserwacji), 59 obserwacjami w klasie 2 i najmniejszą reprezentacją klasy 3 (48 obserwacji). Ta proporcja uzasadnia wybór celności (Accuracy) jako odpowiedniej miary oceny jakości modeli.
+
+## **Badanie rozkładów i wartości odstających zmiennych.**
 
 Na podstawie rozkładów można wyznaczyć parametry, które izolują dane klasy:
 
@@ -432,7 +434,7 @@ Głównym wnioskiem płynącym z analizy rozkładu celności jest **różnica w 
 
 -   **Drzewo decyzyjne (bagging) charakteryzuje się bardzo wysoką wariancją.** Szerokie pudełko (od 0.91 do 0.98) oraz długi dolny wąs sięgający wartości 0.83 pokazują, że model ten jest silnie uzależniony od losowego składu podpróbek walidacyjnych. Ze względu na małą liczebność pojedynczego foldu (ok. 12 obserwacji), ortogonalne cięcia przestrzeni przez drzewa okazały się mało odporne na zmienności wartości.
 
-### Szczegółowa mapa błędów klasyfikacji
+### Mapa błędów klasyfikacji
 
 Aby zrozumieć mechanizm potknięć poszczególnych algorytmów, wyizolowano i przeanalizowano wyłącznie te obserwacje z pętli kroswalidacji, na których pomylił się minimum jeden model.
 
@@ -482,3 +484,114 @@ Wizualizacja ta ujawnia unikalne cechy geometryczne klasyfikatorów oraz obrazuj
     -   Z kolei w przypadku wina nr **26** zawiodło drzewo i kNN, podczas gdy liniowa płaszczyzna dyskryminacyjna LDA okazała się trafna.
 
 -   **Odosobnione potknięcia najlepszych modeli:** nawet wiodące algorytmy mają swoje słabe punkty. LDA jako jedyny pomylił się przy obserwacji 97, natomiast kNN jako jedyny błędnie sklasyfikował wino nr 135.
+
+# Ocena końcowa na zbiorze testowym
+
+Ostatnim etapem analizy jest weryfikacja zdolności generalizacyjnych zoptymalizowanych modeli na odizolowanym zbiorze testowym, stanowiącym 30% pierwotnych danych. Zgodnie z przyjętą metodologią, zbiór ten nie brał udziału w procesie treningu ani tuningu hiperparametrów. Aby uniknąć wycieku danych (*data leakage*), parametry standaryzacji oraz składowe PCA zostały wyliczone wyłącznie na podstawie pełnego zbioru uczącego, a następnie zaaplikowane na zbiorze testowym za pomocą funkcji projekcji.
+
+## **Wyniki klasyfikacji**
+
+Modele przetrenowane na pełnym zbiorze treningowym (z wykorzystaniem najlepszych wyłonionych hiperparametrów) poddano ostatecznemu egzaminowi. Wyniki celności (*Accuracy*) kształtują się następująco:
+
+```{r}
+set.seed(123)
+#EWALUACJA MODELI NA ZBIORZE TESTOWYM (WINE_TEST)
+
+library(kknn)
+library(MASS)
+library(rpart)
+library(ipred)
+
+#przygotowanie pełnych danych treningowych i testowych w przestrzeni PCA (dla kNN i LDA)
+X_train_full <- wine_train[, -1]
+Y_train_full <- wine_train$Class
+X_test_full  <- wine_test[, -1]
+Y_test_full  <- wine_test$Class
+
+#budowa ostatecznego modelu PCA na całym zbiorze treningowym
+pca_full <- prcomp(X_train_full, center = TRUE, scale. = TRUE)
+
+#projekcja na optymalną liczbę składowych głównych best_pca
+train_pca_full <- data.frame(Class = Y_train_full, pca_full$x[, 1:best_pca])
+test_pca_full  <- data.frame(Class = Y_test_full, predict(pca_full, newdata = X_test_full)[, 1:best_pca])
+
+
+#trenowanie finałowych modeli na całych dostępnych danych treningowych
+
+#Finałowy model kNN (uwzględnia wybrane best_k oraz best_kernel)
+final_knn <- kknn(Class ~ ., train = train_pca_full, test = test_pca_full, k = best_k, kernel = best_kernel)
+pred_test_knn <- final_knn$fitted.values
+
+#Finałowy model LDA (działa automatycznie na optymalnej liczby składowych z train_pca_full)
+final_lda <- lda(Class ~ ., data = train_pca_full)
+pred_test_lda <- predict(final_lda, newdata = test_pca_full)$class
+
+#Finałowy model Drzewa z Baggingiem (z optymalnym cp na surowych danych)
+final_tree <- bagging(Class ~ ., data = wine_train, nbagg = 25, control = rpart.control(cp = best_cp))
+pred_test_tree <- predict(final_tree, newdata = wine_test)
+
+
+#OBLICZANIE ACCURACY
+acc_test_knn <- mean(pred_test_knn == Y_test_full)
+acc_test_lda <- mean(pred_test_lda == Y_test_full)
+acc_test_tree <- mean(pred_test_tree == Y_test_full)
+
+
+#Wyświetlenie macierzy pomyłek i wyników Accuracy - graficzne
+#tworzenie bazowych macierzy pomyłek
+cm_knn <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_knn)
+cm_lda <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_lda)
+cm_tree <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_tree)
+
+#GRAFICZNE MACIERZE POMYŁEK na jednym wykresie
+library(patchwork)
+library(ggplot2)
+
+rysuj_macierz <- function(cm, tytul, kolor_glowny, accuracy) {
+  cm_df <- as.data.frame(cm)
+  cm_df$Przewidywana <- factor(cm_df$Przewidywana, levels = rev(levels(cm_df$Przewidywana)))
+  
+  ggplot(cm_df, aes(x = Rzeczywista, y = Przewidywana, fill = Freq)) +
+    geom_tile(color = "black", linewidth = 0.5) +
+    geom_text(aes(label = Freq), size = 6, fontface = "bold") +
+    scale_fill_gradient(low = "white", high = kolor_glowny) +
+    theme_minimal() +
+    coord_fixed() + # <-- DODANE: wymusza kwadratowe kafelki
+    labs(title = tytul,
+         subtitle = paste("Accuracy:", round(accuracy * 100, 2), "%"),
+         x = "Rzeczywista",
+         y = "Przewidywana") +
+    theme(plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
+          legend.position = "none")
+}
+wykres_cm_knn <- rysuj_macierz(cm_knn, "kNN", "#18BC9C", acc_test_knn)
+wykres_cm_lda <- rysuj_macierz(cm_lda, "LDA", "#2C3E50", acc_test_lda)
+wykres_cm_tree <- rysuj_macierz(cm_tree, "Drzewo decyzyjne", "#6E1300", acc_test_tree)
+
+wykres_zbiorczy <- wykres_cm_knn + wykres_cm_lda + wykres_cm_tree +
+  plot_layout(ncol = 3) +
+  plot_annotation(
+    title = "Porównanie Macierzy Pomyłek na zbiorze testowym",
+    theme = theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 10, hjust = 0.5, color = "#555555")
+      )
+  )
+
+print(wykres_zbiorczy)
+
+```
+
+-   Model kNN: osiągnął dokładność na poziomie `r round(acc_test_knn * 100, 2)`%, co potwierdza jego wysoką skuteczność i brak zjawiska przeuczenia. Geometria klas w przestrzeni PCA okazała się na tyle stabilna, że granice decyzyjne skutecznie odseparowały nowe, nieznane przypadki.
+
+-   Model LDA: uzyskał dokładność `r round(acc_test_lda * 100, 2)`%. Oznacza to, że założenie o liniowej separowalności klas przy użyciu `r best_pca` składowych PCA było trafne, a model bardzo dobrze uogólnia wiedzę.
+
+-   Drzewo decyzyjne (Bagging): osiągnęło dokładność na poziomie `r round(acc_test_tree * 100, 2)`%. Mimo obaw o wyższą wariancję z etapu kroswalidacji, zastosowanie agregacji (baggingu) wygładziło ortogonalne podziały i zrównało ten algorytm skutecznością z pozostałymi metodami.
+
+Wszystkie trzy modele radzą sobie na zbiorze testowym praktycznie tak samo dobrze. Zbliżone wyniki dowodzą, że proces optymalizacji hiperparametrów przebiegł prawidłowo, granice decyzyjne algorytmów są stabilne, a początkowa ocena na zbiorze walidacyjnym była w pełni rzetelna.
+
+# Wnioski końcowe
+
+Przeprowadzona analiza dowodzi, że zbiór danych Wine charakteryzuje się wyraźną separowalnością klas, co pozwoliło wszystkim zastosowanym algorytmom osiągnąć bardzo wysoką celność na zbiorze testowym (powyżej 96%). Mimo zbliżonych wyników, jednoznacznym zwycięzcą i ostatecznie rekomendowanym modelem zostaje **LDA**.
+
+Za wyborem LDA przemawia jego ekstremalna stabilność wykazana w kroswalidacji oraz prostota matematyczna. Algorytm ten idealnie wykorzystał naturalną, liniową geometrię rozkładu predyktorów. W przeciwieństwie do drzew decyzyjnych, LDA nie wymagało stosowania złożonego komitetu (baggingu) w celu redukcji wariancji. Z kolei w porównaniu do kNN, LDA tworzy globalne hiperpłaszczyzny decyzyjne, co czyni model znacznie lżejszym i szybszym w środowisku produkcyjnym, ponieważ eliminuje konieczność każdorazowego przeliczania odległości dla nowych obserwacji.

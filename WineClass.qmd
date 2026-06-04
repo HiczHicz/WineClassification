@@ -218,6 +218,10 @@ colnames(wine_df) <- c(
 )
 wine_df$Class <- as.factor(wine_df$Class)
 
+# Dodajemy unikalne ID do surowych danych przed podziałem.
+# Dzięki temu każde wino zachowa swój prawdziwy numer (1-178) przez cały proces.
+wine_df$ID <- 1:nrow(wine_df)
+
 
 library(rsample)
 library(kknn)   #dla kNN
@@ -272,13 +276,15 @@ for(i in 1:10) {
   fold_val   <- assessment(folds$splits[[i]])
   
   #---DLA DRZEWA - dane surowe
-  train_unscaled <- fold_train
-  val_unscaled   <- fold_val
+  train_unscaled <- fold_train[, !names(fold_train) %in% c("ID")] 
+  val_unscaled   <- fold_val[, !names(fold_val) %in% c("ID")]
   
   #---STANDARYZACJA I PCA
-  X_train <- fold_train[, -1] 
+  #wykluczamy kolumnę 'ID' z treningu modeli, aby nie stała się predyktorem!
+  #usuwamy ją przy pomocy nazw, co jest w pełni bezpieczne.
+  X_train <- fold_train[, !names(fold_train) %in% c("Class", "ID")] 
   Y_train <- fold_train$Class
-  X_val   <- fold_val[, -1]
+  X_val   <- fold_val[, !names(fold_val) %in% c("Class", "ID")]
   Y_val   <- fold_val$Class
   
   #PCA z wbudowaną standaryzacją
@@ -302,8 +308,6 @@ for(i in 1:10) {
     knn_model_temp <- kknn(Class ~ ., train = train_pca, test = val_pca, 
                            k = knn_grid$k[j], kernel = as.character(knn_grid$kernel[j]))
     acc_knn_mat[i, j] <- mean(knn_model_temp$fitted.values == Y_val)
-    #zapis predykcji dla pierwszej wartości z siatki (na potrzeby tabeli wyniki_pred i heatmapy)
-    if(j == 1) knn_pred <- knn_model_temp$fitted.values
   }
   
   #---Tuning LDA (pętla po siatce pca_grid)
@@ -317,8 +321,6 @@ for(i in 1:10) {
     lda_pred_temp  <- predict(lda_model_temp, newdata = val_pca_lda)$class
     acc_lda_mat[i, j] <- mean(lda_pred_temp == Y_val)
     
-    #zapis predykcji dla pierwszej wartości z siatki (na potrzeby tabeli wyniki_pred i heatmapy)
-    if(j == 1) lda_pred <- lda_pred_temp
   }
   
   #---Tuning Drzewa decyzyjnego (pętla po siatce tree_grid)
@@ -327,23 +329,8 @@ for(i in 1:10) {
     tree_model_temp <- bagging(Class ~ ., data = train_unscaled, nbagg = 100, control = rpart.control(cp = tree_grid$cp[j], minsplit = tree_grid$minsplit[j])) ###POGRZEBAĆ W RPART CONTROL - WIĘCEJ RZECZY, ew overfitting i pruning
     tree_pred_temp  <- predict(tree_model_temp, newdata = val_unscaled)
     acc_tree_mat[i, j] <- mean(tree_pred_temp == Y_val)
-    #zapis predykcji dla pierwszej wartości z siatki (na potrzeby tabeli wyniki_pred i heatmapy)
-    if(j == 1) tree_pred <- tree_pred_temp
   }
   
-  #zapis predykcji
-  ID_wina <- rownames(val_pca)
-  fold_results <- data.frame(
-    ID = ID_wina,
-    Rzeczywista_Klasa = Y_val,
-    kNN = knn_pred,
-    LDA = lda_pred,
-    Tree = tree_pred
-  )
-  #PODSUMOWANIE WYNIKÓW
-
-  wyniki_pred <- rbind(wyniki_pred, fold_results)
-
 }
 
 #wybór najlepszych hiperparametrów ---
@@ -369,17 +356,58 @@ cat("Najlepsze parametry kNN: k =", best_k, ", kernel =", best_kernel, "(Średni
 cat("Najlepsza l. składowych (PCA) dla LDA:", best_pca, "(Średnie Accuracy:", round(mean_lda_acc[best_pca_idx], 4), ")\n")
 cat("Najlepsze parametry dla Drzewa: cp: ", best_cp, "minsplit: ", best_minsplit, "(Średnie Accuracy:", round(mean_tree_acc[best_tree_idx], 4), ")\n\n")
 
-#nadpisanie wektorów wynikami z najlepszych modeli
+wyniki_pred <- data.frame()
+
+for(i in 1:10) {
+  fold_train <- analysis(folds$splits[[i]])
+  fold_val   <- assessment(folds$splits[[i]])
+  
+  X_train <- fold_train[, !names(fold_train) %in% c("Class", "ID")]
+  Y_train <- fold_train$Class
+  X_val   <- fold_val[, !names(fold_val) %in% c("Class", "ID")]
+  Y_val   <- fold_val$Class
+  
+  pca_model <- prcomp(X_train, center = TRUE, scale. = TRUE)
+  
+  # Najlepszy kNN
+  train_pca_knn <- data.frame(Class = Y_train, pca_model$x[, 1:5])
+  val_pca_knn   <- data.frame(Class = Y_val, predict(pca_model, newdata = X_val)[, 1:5])
+  knn_best <- kknn(Class ~ ., train = train_pca_knn, test = val_pca_knn, k = best_k, kernel = best_kernel)
+  
+  # Najlepsze LDA
+  train_pca_lda <- data.frame(Class = Y_train, pca_model$x[, 1:best_pca])
+  val_pca_lda   <- data.frame(Class = Y_val, predict(pca_model, newdata = X_val)[, 1:best_pca])
+  lda_best      <- lda(Class ~ ., data = train_pca_lda)
+  lda_pred      <- predict(lda_best, newdata = val_pca_lda)$class
+  
+  # Najlepsze Drzewo
+  train_unscaled <- fold_train[, !names(fold_train) %in% "ID"]
+  val_unscaled   <- fold_val[, !names(fold_val) %in% "ID"]
+  tree_best      <- bagging(Class ~ ., data = train_unscaled, nbagg = 100, 
+                            control = rpart.control(cp = best_cp, minsplit = best_minsplit))
+  tree_pred      <- predict(tree_best, newdata = val_unscaled)
+  
+  fold_results <- data.frame(
+    ID = fold_val$ID, 
+    Rzeczywista_Klasa = Y_val,
+    kNN = knn_best$fitted.values,
+    LDA = lda_pred,
+    Tree = tree_pred
+  )
+  wyniki_pred <- rbind(wyniki_pred, fold_results)
+}
+
+# PRZYGOTOWANIE WYNIKÓW KROSWALIDACJI
 acc_knn <- acc_knn_mat[, best_knn_idx]
 acc_lda <- acc_lda_mat[, best_pca_idx]
 acc_tree <- acc_tree_mat[, best_tree_idx]
 
-  wyniki_cv <- data.frame(
-    Fold = 1:10,
-    KNN_Acc = acc_knn,
-    LDA_Acc = acc_lda,
-    Tree_Acc = acc_tree
-  )
+wyniki_cv <- data.frame(
+  Fold = 1:10,
+  KNN_Acc = acc_knn,
+  LDA_Acc = acc_lda,
+  Tree_Acc = acc_tree
+)
 
 cat("Wyniki z poszczególnych foldów (dla optymalnych parametrów):\n")
 print(round(wyniki_cv, 4))
@@ -389,10 +417,10 @@ cat("kNN:   ", round(mean(acc_knn), 4), "\n")
 cat("LDA:   ", round(mean(acc_lda), 4), "\n")
 cat("Tree:  ", round(mean(acc_tree), 4), "\n")
 
-#obliczenia.R - potrzebne, żeby móc szybciej wczytywać dane w pliku WineReport.qmd, w którym powstaje raport
+# ZAPIS DO PLIKU RDS
 wyniki_lista <- list(
   wyniki_cv = wyniki_cv,
-  wyniki_pred = wyniki_pred, # <-- TA LINIA JEST KLUCZOWA!
+  wyniki_pred = wyniki_pred, 
   knn_grid = knn_grid,
   tree_grid = tree_grid,
   pca_grid = pca_grid,
@@ -408,8 +436,6 @@ wyniki_lista <- list(
   best_pca_idx = best_pca_idx,
   best_tree_idx = best_tree_idx
 )
-
-saveRDS(wyniki_lista, "wyniki_modelowania.rds")
 
 saveRDS(wyniki_lista, "wyniki_modelowania.rds")
 ```
@@ -685,6 +711,17 @@ final_tree <- bagging(Class ~ ., data = wine_train, nbagg = 25, control = rpart.
 pred_test_tree <- predict(final_tree, newdata = wine_test)
 
 
+#OBLICZANIE ACCURACY
+acc_test_knn <- mean(pred_test_knn == Y_test_full)
+acc_test_lda <- mean(pred_test_lda == Y_test_full)
+acc_test_tree <- mean(pred_test_tree == Y_test_full)
+
+#WYDRUK WYNIKÓW DO KONSOLI 
+cat("\n=== WYNIKI NA ZBIORZE TESTOWYM ===\n")
+cat("Accuracy kNN:  ", round(acc_test_knn * 100, 2), "%\n")
+cat("Accuracy LDA:  ", round(acc_test_lda * 100, 2), "%\n")
+cat("Accuracy Tree: ", round(acc_test_tree * 100, 2), "%\n\n")
+
 #Wyświetlenie macierzy pomyłek i wyników Accuracy - graficzne
 #tworzenie bazowych macierzy pomyłek
 cm_knn <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_knn)
@@ -695,7 +732,7 @@ cm_tree <- table(Rzeczywista = Y_test_full, Przewidywana = pred_test_tree)
 library(patchwork)
 library(ggplot2)
 
-rysuj_macierz <- function(cm, tytul, kolor_glowny) {
+rysuj_macierz <- function(cm, tytul, kolor_glowny, accuracy) {
   cm_df <- as.data.frame(cm)
   cm_df$Przewidywana <- factor(cm_df$Przewidywana, levels = rev(levels(cm_df$Przewidywana)))
   
@@ -706,20 +743,24 @@ rysuj_macierz <- function(cm, tytul, kolor_glowny) {
     theme_minimal() +
     coord_fixed() + # <-- DODANE: wymusza kwadratowe kafelki
     labs(title = tytul,
+         subtitle = paste("Accuracy:", round(accuracy * 100, 2), "%"),
          x = "Rzeczywista",
          y = "Przewidywana") +
     theme(plot.title = element_text(face = "bold", size = 12, hjust = 0.5),
           legend.position = "none")
 }
-wykres_cm_knn <- rysuj_macierz(cm_knn, "kNN", "#18BC9C")
-wykres_cm_lda <- rysuj_macierz(cm_lda, "LDA", "#2C3E50")
-wykres_cm_tree <- rysuj_macierz(cm_tree, "Drzewo decyzyjne", "#6E1300")
+wykres_cm_knn <- rysuj_macierz(cm_knn, "kNN", "#18BC9C", acc_test_knn)
+wykres_cm_lda <- rysuj_macierz(cm_lda, "LDA", "#2C3E50", acc_test_lda)
+wykres_cm_tree <- rysuj_macierz(cm_tree, "Drzewo decyzyjne", "#6E1300", acc_test_tree)
 
 wykres_zbiorczy <- wykres_cm_knn + wykres_cm_lda + wykres_cm_tree +
   plot_layout(ncol = 3) +
   plot_annotation(
     title = "Porównanie Macierzy Pomyłek na zbiorze testowym",
-    theme = theme(plot.title = element_text(size = 16, face = "bold", hjust = 0.5))
+    theme = theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = element_text(size = 10, hjust = 0.5, color = "#555555")
+      )
   )
 
 print(wykres_zbiorczy)
