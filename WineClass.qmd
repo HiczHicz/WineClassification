@@ -104,14 +104,27 @@ ggplot(wine_long, aes(x = Value, fill = Class, group = Class)) +
     -   klasy są od siebie fizycznie odseparowane (np. dla parametru *Flavanoids*), zatem model kNN oparty na odległościach, czy też drzewo decyzyjne oparte na regułach, znajdą czyste granice podziału dla tych zmiennych.
 
 ```{r}
-ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = Class)) +
-  geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2) +
-  facet_wrap(~Variable, scales = "free") +
+#| fig-width: 10
+#| fig-height: 14
+#| fig-align: center
+
+
+ggplot(wine_long, aes(x = Class, y = Value, fill = Class)) +
+  geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2, alpha = 0.8) +
+  
+  #ncol = 3 rozciągnie wykresy w poziomie
+  facet_wrap(~Variable, scales = "free", ncol = 3) +
   theme_minimal() +
   labs(title = "Analiza wartości odstających w podziale na klasy",
        x = "Klasa",
-       y = "Wartość",
-     fill = "Klasa")
+       y = "Wartość") +
+  theme(
+    legend.position = "none", #na osi jest podpisane, która to klasa - legenda niepotrzebna
+    panel.spacing.x = unit(1.5, "lines"), #odstępy w poziomie między wykresami
+    panel.spacing.y = unit(1.5, "lines"), #odstępy w pionie
+    strip.text = element_text(face = "bold", size = 10), #mniejsze nazwy zmiennych
+    axis.text = element_text(size = 9)
+  )
 ```
 
 5.  **Stworzenie wykresu korelacji.** Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem trzech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
@@ -135,7 +148,7 @@ Klaster 3 i 4 są mniej istotne w analizie:
 
 Ponadto, z klastrów można wyciągnąć następujące wnioski:
 
--   Silne korelacje (zwłaszcza w klastrze 1) -\> **warto zastosować PCA** przed tworzeniem modelu LDA.
+-   Silne korelacje (zwłaszcza w klastrze 1) -\> **warto zastosować PCA**
 
 -   Drzewo decyzyjne najprawdopodobniej wybierze jako korzeń tylko jedną zmienną z pierwszego klastru - reszta nie wniesie żadnej nowej informacji.
 
@@ -163,8 +176,8 @@ corrplot(korelacje_wine,
 #  fig-height: 5
 title(main = "Macierz korelacji predyktorów z grupowaniem (hclust)", 
       adj=0,
-      font.main = 1, # 2 oznacza pogrubienie (bold)
-      cex.main = 1) # rozmiar odpowiadający size = 16
+      font.main = 2, 
+      cex.main = 1) #rozmiar odpowiadający size = 16
 
 ```
 
@@ -310,7 +323,7 @@ for(i in 1:10) {
   
   #---Tuning Drzewa decyzyjnego (pętla po siatce tree_grid)
   for(j in 1:nrow(tree_grid)) {
-    #przekazanie parametru cp przez rpart.control wewnątrz funkcji bagging
+    #przekazanie parametru cp, minsplit przez rpart.control wewnątrz funkcji bagging
     tree_model_temp <- bagging(Class ~ ., data = train_unscaled, nbagg = 50, control = rpart.control(cp = tree_grid$cp[j], minsplit = tree_grid$minsplit[j])) ###POGRZEBAĆ W RPART CONTROL - WIĘCEJ RZECZY, ew overfitting i pruning
     tree_pred_temp  <- predict(tree_model_temp, newdata = val_unscaled)
     acc_tree_mat[i, j] <- mean(tree_pred_temp == Y_val)

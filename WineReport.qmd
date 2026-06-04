@@ -1,7 +1,10 @@
 ---
 title: "Wine Classification Report"
 author: "Martyna Pieczka, Magdalena Chamera"
-format: pdf
+format: 
+  pdf:
+    number-sections: true
+    fig-device: cairo
 editor: visual
 execute:
   echo: false
@@ -10,31 +13,20 @@ execute:
   fig-align: "center"
   fig-width: 8
   fig-height: 5
+  cache: true #jeśli kod taki sam, nie uruchamia go ponownie
 ---
 
-## Wstęp
+# Wstęp
 
-Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierającego 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
+Celem niniejszego raportu jest podsumowanie trzech modeli klasyfikacyjnych utworzonych na podstawie danych *Wine recognition data*[^1], zawierających 13 parametrów fizykochemicznych win powstałych z trzech typów winogron w tym samym regionie Włoch.
 
 [^1]: Aeberhard, S. & Forina, M. (1992). Wine \[Dataset\]. UCI Machine Learning Repository. <https://doi.org/10.24432/C5PC7J>)
 
 Oficjalna dokumentacji UCI nie podaje jednostek miar. Zbiór może jednak wciąż być używany do testowania metod klasyfikacji.
 
-## Metodologia
+# Metodologia
 
-**1. Wstępna analiza danych**
-
-Prace nad modelem poprzedzono analizą danych, w celu głębszego poznania ich struktury. W ramach analizy zrealizowano następujące kroki:
-
--   **Weryfikacja braków danych:** Sprawdzono kompletność zbioru, aby uniknąć błędów w działaniu algorytmów.
-
--   **Analiza zmiennej celu:** Zweryfikowano stopień zrównoważenia klas, co jest kluczowe dla wyboru odpowiednich miar oceny modeli.
-
--   **Badanie rozkładów i wartości odstających:** Przeanalizowano kształt rozkładów poszczególnych predyktorów oraz zidentyfikowano wartości odstające (outliery), które mogą negatywnie wpływać na wrażliwe modele.
-
--   **Macierz korelacji:** Zbadano siłę zależności liniowych między zmiennymi objaśniającymi, w celu detekcji współliniowości.
-
-**2. Podział danych i schemat walidacji**
+## **Podział danych i schemat walidacji**
 
 W celu obiektywnej oceny zdolności generalizacyjnych modeli, zbiór danych został podzielony na dwie rozłączne części: **zbiór uczący (70%)** oraz **zbiór testowy (30%)**.
 
@@ -42,7 +34,7 @@ Ze względu na planowany tuning hiperparametrów, na zbiorze uczącym zastosowan
 
 Szczególną uwagę zwrócono na wyeliminowanie ryzyka wycieku danych (*data leakage*). Wszelkie transformacje (takie jak standaryzacja czy redukcja wymiarowości) były uczone i wyliczane **wyłącznie na 9 foldach treningowych** w każdej iteracji, a następnie jedynie aplikowane na 1 foldzie walidacyjnym. Analogiczne podejście zastosowano dla końcowego zbioru testowego – został on przetransformowany przy użyciu średnich i odchyleń standardowych wyliczonych wyłącznie na pełnym zbiorze uczącym. Dzięki temu zbiór walidacyjny i testowy dopasowują się do skali, której nauczył się model, zachowując pełną izolację informacji.
 
-**3. Uzasadnienie wyboru modeli**
+## **Uzasadnienie wyboru modeli**
 
 W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każde wymagało odpowiedniego przygotowania danych wejściowych. Poniżej przedstawiamy uzasadnienie wyboru danego modelu oraz transformacje przeprowadzone na danych.
 
@@ -57,19 +49,38 @@ W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każd
 
 -   **Drzewo decyzyjne:**
 
-    Dla zbioru danych Wine, charakteryzującego się predyktorami o skrajnie zróżnicowanych przedziałach liczbowych (od ułamkowych zawartości fenoli po tysięczne wartości proliny), model ten zastosowano ze względu na jego naturalną zdolność do bezpośredniej pracy na cechach o różnych skalach bez ryzyka dominacji jednych zmiennych nad innymi, co pozwoliło całkowicie pominąć etap standaryzacji i PCA. Podejście zespołowe wybrano po to, by sprawdzić skuteczność nieliniowych, ortogonalnych podziałów w surowej przestrzeni cech. Zastosowanie baggingu miało na celu uśrednienie wyników wielu głębokich, celowo przeuczonych drzew składowych, co drastycznie obniżyło wariancję modelu i zapewniło stabilność predykcji przy małej liczbie obserwacji. W celu optymalizacji struktury drzew w komitecie przeprowadzono dwuwymiarowy tuning siatki parametru złożoności (\$cp\$) oraz minimalnej liczby obserwacji do podziału (\$minsplit\$) \#### SPRAWDZIĆ CZY SIĘ RENDERUJE LATEX
+    Dla zbioru danych Wine, charakteryzującego się predyktorami o skrajnie zróżnicowanych przedziałach liczbowych (od ułamkowych zawartości fenoli po tysięczne wartości proliny), model ten zastosowano ze względu na jego naturalną zdolność do bezpośredniej pracy na cechach o różnych skalach bez ryzyka dominacji jednych zmiennych nad innymi, co pozwoliło całkowicie pominąć etap standaryzacji i PCA. Podejście zespołowe wybrano po to, by sprawdzić skuteczność nieliniowych, ortogonalnych podziałów w surowej przestrzeni cech. Zastosowanie baggingu (bootstrap replications = 100 ) miało na celu uśrednienie wyników wielu głębokich, celowo przeuczonych drzew składowych, co drastycznie obniżyło wariancję modelu i zapewniło stabilność predykcji przy małej liczbie obserwacji. W celu optymalizacji struktury drzew w komitecie przeprowadzono dwuwymiarowy tuning siatki parametru złożoności ($cp$) oraz minimalnej liczby obserwacji do podziału ($minsplit$).
 
-## Wyniki analizy struktury danych Wine
+# Wyniki analizy struktury danych Wine
 
-W trakcie wstępnej analizy danych postępowałyśmy następująco:
+## **Sprawdzenie brakujących wartości i zrównoważenia klas.**
 
-1.  **Sprawdzenie brakujących wartości.** Zbiór danych ich nie ma.
-2.  **Sprawdzenie zrównoważenia klas.** Rozkład liczebności klas w zbiorze Wine. Zbiór jest stosunkowo zbalansowany, z lekką dominacją klasy 2 (71 obserwacji) i najmniejszą reprezentacją klasy 3 (48 obserwacji). Ta proporcja uzasadnia wybór celności (Accuracy) jako odpowiedniej miary oceny jakości modeli.
+Zbiór danych nie ma brakujących wartości. Zbiór jest stosunkowo zbalansowany, z lekką dominacją klasy 2 (71 obserwacji) i najmniejszą reprezentacją klasy 3 (48 obserwacji). Ta proporcja uzasadnia wybór celności (Accuracy) jako odpowiedniej miary oceny jakości modeli.**Badanie rozkładów i wartości odstających zmiennych.**
+
+Na podstawie rozkładów można wyznaczyć parametry, które izolują dane klasy:
+
+-   *Proline* ma znacznie wyższe wartości w **klasie 1** w porównaniu z pozostałymi klasami. *Malic_acid* ma bardzo niską wariancję dla klasy 1.
+
+-   *Alcohol, Color_intensity* są najniższe w **klasie 2.**
+
+-   W **klasie 3**, *Flavanoids, Hue, Total_Phenols i OD280_OD315* mają niskie wartości tych parametrów.
+
+Badanie wartości odstających daje następujące wnioski:
+
+-   Naruszone zostały założenia LDA o zbliżonej wariancji i braku wartości odstających. Macierze kowariancji mogą być zaburzone.
+
+-   Klasy są od siebie fizycznie odseparowane (np. dla parametru *Flavanoids*), zatem model kNN oparty na odległościach, czy też drzewo decyzyjne oparte na regułach, znajdą czyste granice podziału dla tych zmiennych.\
 
 ```{r}
+#| include: false
 
 
+#wczytanie danych
 library(showtext)
+showtext_auto()
+library(ggplot2)
+library(tidyr)
+
 showtext_auto()
 
 wine_df <- read.csv("wine.data", header=FALSE)
@@ -91,74 +102,78 @@ colnames(wine_df) <- c(
   "Proline"
 )
 
-library(ggplot2)
+wine_df$Class <- as.factor(wine_df$Class)
 
-#tworzenie wykresu za pomocą ggplot2 - zliczanie 
-  
-ggplot(wine_df, aes(x = Class, fill=as.factor(Class))) +
-  geom_bar() +
-  geom_text(stat = 'count', aes(label = after_stat(count)), vjust = -0.5) +
-  #wykres źle się skalował w pdf - dodanie 15% wolnej przestrzeni nad słupkiem
-  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) + 
-  theme_minimal() +
-  labs(title = "Rozkład klas w zbiorze Wine",
-       x = "Klasa",
-       y = "Liczba obserwacji",
-       fill = "Klasa")
-```
-
-3.  **Badanie rozkładów zmiennych.** Można na ich podstawie wyznaczyć parametry, które izolują dane klasy:
-
--   *Proline* ma znacznie wyższe wartości w **klasie 1** w porównaniu z pozostałymi klasami. *Malic_acid* ma bardzo niską wariancję dla klasy 1.
-
--   *Alcohol, Color_intensity* są najniższe w **klasie 2.**
-
--   W **klasie 3**, *Flavanoids, Hue, Total_Phenols i OD280_OD315* mają niskie wartości tych parametrów.\
-
-```{r}
-library(tidyr) #ZŁY KOLOR XD
-
-#dane w formacie długim - potrzebne do wygenerowania wielu wykresów
 wine_long <- pivot_longer(wine_df, 
                           cols = -Class, 
                           names_to = "Variable", 
                           values_to = "Value")
 
+library(rsample)
+set.seed(123) # Ważne: ten sam seed, żeby podział był identyczny!
+wine_split <- initial_split(wine_df, prop = 0.7, strata = Class)
+wine_train <- training(wine_split)
+wine_test  <- testing(wine_split)
 
-ggplot(wine_long, aes(x = Value, fill = Class, group = Class)) +
-  geom_density(alpha = 0.4) + 
-  facet_wrap(~Variable, scales = "free") + 
-  theme_minimal() +
-  labs(title = "Rozkłady cech fizykochemicznych w podziale na klasy win",
-       x = "Wartość",
-       y = "Gęstość",
-       fill = "Klasa")
+
+# --- 2. WCZYTANIE WYNIKÓW Z PLIKU RDS ---
+wyniki <- readRDS("wyniki_modelowania.rds")
+list2env(wyniki, envir = .GlobalEnv)
 ```
 
-3.  **Badanie rozkładów i wartości odstających.**
+```{r}
+#| fig-width: 10
+#| fig-height: 14
+#| fig-align: center
 
-3.  **Stworzenie wykresu korelacji.** Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem trzech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
 
--   klaster 1 (lewy górny róg):
-    -   zmienne *Hue, Proanthocyanins, OD280_OD315, Total_phenols, Flavanoids*
-    -   silna korelacja dodatnia, spowodowana zależnościami chemicznymi (flawonidy to związki z grupy polifenoli, wpływają na barwę i wynik testu OD280_OD315 na obecność białek i polifenoli).
--   klaster 2:
-    -   zmienne *Magnesium, Color_intensity, Alcohol, Proline*
-    -   prolina jest aminokwasem znajdującym się w winogronach, którego stężenie wzrasta wraz z dojrzałością owoców. Przekłada się to na wyższy poziom cukru, w efekcie również alkoholu.
+
+ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class))) +
+  geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2, alpha = 0.8) +
+  
+  #ncol = 3 rozciągnie wykresy w poziomie
+  facet_wrap(~Variable, scales = "free", ncol = 3) +
+  theme_minimal() +
+  labs(title = "Analiza wartości odstających w podziale na klasy",
+       x = "Klasa",
+       y = "Wartość") +
+  theme(
+    legend.position = "none", #na osi jest podpisane, która to klasa - legenda niepotrzebna
+    panel.spacing.x = unit(1.5, "lines"), #odstępy w poziomie między wykresami
+    panel.spacing.y = unit(1.5, "lines"), #odstępy w pionie
+    strip.text = element_text(face = "bold", size = 10), #mniejsze nazwy zmiennych
+    plot.title = element_text(face = "bold"),
+    axis.text = element_text(size = 9)
+  )
+```
+
+## **Wykres korelacji**
+
+Użyto metody sortowania hclust (hierarchical clustering, które łączy zmienne w klastry na podstawie siły korelacji) wraz z dodawaniem czterech prostokątów. Wyodrębiono cztery grupy korelacji dodatnich, z czego najważniejsze są:
+
+-   Klaster 1 (lewy górny róg):
+
+    -   Zmienne *Hue, Proanthocyanins, OD280_OD315, Total_phenols, Flavanoids;*
+
+    -   Silna korelacja dodatnia, spowodowana zależnościami chemicznymi (flawonidy to związki z grupy polifenoli, wpływają na barwę i wynik testu OD280_OD315 na obecność białek i polifenoli).
+
+-   Klaster 2:
+
+    -   Zmienne *Magnesium, Color_intensity, Alcohol, Proline;*
+    -   Prolina jest aminokwasem znajdującym się w winogronach, którego stężenie wzrasta wraz z dojrzałością owoców. Przekłada się to na wyższy poziom cukru, w efekcie również alkoholu.
 
 Klaster 3 i 4 są mniej istotne w analizie:
 
--   klaster 3:
-    -   zmienne *Ash, Alcalinity_of_ash*
-    -   powiązane parametry (*Ash* to sucha pozostałość po całkowitym spaleniu substancji organicznych w próbce. Składa się ze związków mineralnych. *Alcalinity_of_ash* mierzy zasadowość popiołu).
+-   Klaster 3:
+    -   Zmienne *Ash, Alcalinity_of_ash;*
+    -   Powiązane parametry (*Ash* to sucha pozostałość po całkowitym spaleniu substancji organicznych w próbce. Składa się ze związków mineralnych. *Alcalinity_of_ash* mierzy zasadowość popiołu).
 -   klaster 4:
-    -   zmienne *Malic_acid, Nonflavanoid_phenols*
+    -   Zmienne *Malic_acid, Nonflavanoid_phenols;*
     -   *Malic_acid*, czyli kwas jabłkowy, odpowiada za kwasowość wina, jego poziom spada w wyniku dojrzewania winogron na słońcu
-    -   DOCZYTAĆ - ZOBACZYĆ STR XXII W KSIĄŻCE
 
 Ponadto, z klastrów można wyciągnąć następujące wnioski:
 
--   Silne korelacje (zwłaszcza w klastrze 1) -\> **warto zastosować PCA** przed tworzeniem modelu LDA.
+-   Silne korelacje (zwłaszcza w klastrze 1) sugerują, że **warto zastosować PCA**.
 
 -   Drzewo decyzyjne najprawdopodobniej wybierze jako korzeń tylko jedną zmienną z pierwszego klastru - reszta nie wniesie żadnej nowej informacji.
 
@@ -180,11 +195,202 @@ Ponadto, z klastrów można wyciągnąć następujące wnioski:
              )
     title(main = "Macierz korelacji predyktorów z grupowaniem (hclust)", 
           adj=0,
-          font.main = 1, # 2 oznacza pogrubienie (bold)
+          font.main = 2, # 2 oznacza pogrubienie (bold)
           cex.main = 1) # rozmiar odpowiadający size = 16
     ```
 
-## Interpretacja modeli
+## **Wizualizacja struktury danych w przestrzeni PCA**
+
+Potwierdzeniem potencjału klasyfikacyjnego analizowanego zbioru jest rzut obiektów na przestrzeń dwóch pierwszych składowych głównych (PC1 i PC2). Jak przedstawiono na wykresie, transformacja nienadzorowana pozwala na ujawnienie naturalnej separacji geometrycznej trzech klas win. Powstałe klastry uzasadniają prognozowaną wysoką skuteczność dla modeli kNN i LDA. Jednocześnie z uwagi na diagonalne ułożenie klastrów, przewidywany jest niższy wynik Accuracy dla drzew decyzyjnych, które dokonują podziałów ortogonalnie.
+
+```{r}
+#generowanie obiektów dla pełnego zbioru treningowego:
+X_train_full <- wine_train[, -1]
+Y_train_full <- wine_train$Class
+pca_full     <- prcomp(X_train_full, center = TRUE, scale. = TRUE)
+
+df_plots_pca <- data.frame(Class = Y_train_full, pca_full$x[, 1:2])
+
+ggplot(df_plots_pca, aes(x = PC1, y = PC2, color = Class)) +
+  geom_point(size = 3, alpha = 0.8) +
+  theme_minimal() +
+  scale_color_manual(values = c("1" = "#2C3E50", "2" = "#18BC9C", "3" = "#E74C3C")) +
+  labs(title = "Wizualizacja zbioru Wine w przestrzeni dwóch pierwszych składowych głównych (PCA)",
+       subtitle = "Wyraźna separacja geometryczna klas wyjaśnia wysoką skuteczność modeli kNN i LDA",
+       x = "Pierwsza składowa główna (PC1)",
+       y = "Druga składowa główna (PC2)") +
+  theme(
+    plot.title = element_text(face = "bold"),
+  )
+
+```
+
+# Interpretacja modeli
+
+W tej części raportu przechodzimy do podsumowania pracy naszych modeli: kNN, LDA oraz drzewa decyzyjnego z baggingiem. Cały proces oceny ułożyłyśmy w logiczną całość, tj. zaczynamy od pokazania, jak przebiegał tuning hiperparametrów, następnie sprawdzamy stabilność algorytmów podczas 10-krotnej kroswalidacji, a na koniec oceniamy ich ostateczną skuteczność na odizolowanym zbiorze testowym.
+
+Wstępne podsumowanie optymalizacji i kroswalidacji pokrywają się z wnioskami z analizy struktury danych:
+
+-   **kNN oraz LDA okazały się bezkonkurencyjne**, osiągając średnią dokładność na poziomie odpowiednio **98.33%** (dla $k = 9$ i jądra Epanechnikova) oraz **98.40%** (przy wykorzystaniu wszystkich 13 składowych PCA). Modele te w większości foldów działały bezbłędnie, co potwierdza, że geometryczna, płynna separacja klas w przestrzeni cech bardzo im sprzyja.
+
+-   **Drzewo decyzyjne (bagging) radzi sobie zauważalnie słabiej**, uzyskując średnie Accuracy na poziomie **92.67%** (dla parametrów $cp = 0.005$ oraz $minsplit = 3$). Co więcej, wyniki z poszczególnych przebiegów pętli pokazują, że model ten ma dużą wariancję - jego dokładność potrafi skoczyć do idealnego 100%, aby w innym foldzie spaść do poziomu poniżej 85%.
+
+Poniżej szczegółowo rozbijamy te wyniki na poszczególne etapy analizy.
+
+## Proces optymalizacji i tuning hiperparametrów
+
+Aby uniknąć przypadkowego doboru parametrów i uzyskać największą dokładność, każdy z trzech algorytmów został poddany tuningowi na siatce parametrów (*Grid Search*) wewnątrz pętli 10-krotnej kroswalidacji. Oto jak parametry wpływały na zachowanie poszczególnych modeli:
+
+-   **k-Najbliższych Sąsiadów (kNN):**
+
+    Wybór małej liczby sąsiadów ($k=1$ lub $k=3$) dawał najsłabsze wyniki, ponieważ model był wtedy zbyt wrażliwy na lokalny szum w danych. Celność wyraźnie rośnie od $k=5$, a swój szczyt osiąga **dla** $k=9$ **przy użyciu jądra Epanechnikova (Accuracy: 0.9833)**. Wykres profilu pokazuje też, że dla małych $k$ wybór funkcji odległości miał znacznie większe znaczenie, niż dla dużych $k$.
+
+-   **Liniowa Analiza Dyskryminacyjna (LDA):**
+
+    W tym przypadku sprawdzaliśmy, jak na model wpływa liczba składowych głównych PCA. Dla 2 lub 3 składowych celność była najniższa (poniżej 0.955), co oznacza, że odrzucaliśmy wtedy zmienne niosące kluczowe informacje. Wyraźny skok widać przy 5 składowych, a ostateczny najlepszy wynik uzyskujemy przy **13 składowych (Accuracy: 0.984)**. Potwierdza to wcześniejszą intuicję: obcinanie wymiarowości za pomocą PCA przed uruchomieniem LDA nie miało tutaj sensu matematycznego. LDA najlepiej poradziło sobie samo, mając do dyspozycji pełen zestaw surowych danych.
+
+-   **Drzewo decyzyjne (Bagging):**
+
+    Profil tuningu drzew ma najbardziej poszarpany i nieregularny przebieg, co wynika z natury algorytmów regułowych na małej próbie. Najlepszy wynik **(0.9267)** uzyskaliśmy dla bardzo niskich obostrzeń: $cp = 0.005$ oraz $minsplit = 3$. Potwierdza to teorię baggingu - pojedyncze drzewa składowe w komitecie powinny być jak najgłębsze i celowo przeuczone, ponieważ ich wariancję i tak skutecznie zbije późniejsze uśrednianie wyników. Z kolei zbyt mocne zwiększanie parametru złożoności ($cp \ge 0.03$) powodowało zbyt agresywne przycinanie gałęzi, co wprowadzało model w stan niedouczenia (*underfitting*) i blokowało celność na poziomie około 0.90.
+
+Bezpośrednie zyski z przeprowadzonego procesu dobrze obrazuje wykres słupkowy „Przed i po tuningu”. Zbiór *Wine* jest prostym geometrycznie zbiorem, przez co nawet modele z parametrami bazowymi startowały z bardzo wysokiego pułapu (powyżej 90%). Mimo to, precyzyjne przeszukanie siatki pozwoliło urwać dodatkowe ułamki procentów celności dla każdego algorytmu. Najważniejszym zyskiem z tuningu nie jest jednak sam wzrost średniej, ale upewnienie się, że modele działają w swoich optymalnych i stabilnych konfiguracjach, co ma kluczowe znaczenie dla ich zachowania na zbiorze testowym.
+
+```{r}
+#| layout-ncol: 3
+#| fig-height: 5
+#| fig-width: 6
+#| fig-pos: "H"
+
+library(ggplot2)
+
+#Wykres tuningu kNN
+df_knn_tuning <- data.frame(
+  k = knn_grid$k,
+  Kernel = knn_grid$kernel,
+  Accuracy = mean_knn_acc #użycie gotowego wektora z pliku rds
+)
+
+wykres_knn_tuning <- ggplot(df_knn_tuning, aes(x = k, y = Accuracy, color = Kernel, group = Kernel)) +
+  geom_line(linewidth = 1, alpha = 0.8) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = unique(df_knn_tuning$k)) + 
+  scale_color_manual(values = c("rectangular" = "#18BC9C", 
+                                "epanechnikov" = "#2C3E50", 
+                                "gaussian" = "#E74C3C", 
+                                "optimal" = "#F39C12")) +
+  theme_minimal() +
+  labs(title = "Profil tuningu kNN",
+       x = "Liczba sąsiadów (k)",
+       y = "Średnie Accuracy",
+       color = "Kernel") +
+  theme(legend.position = "bottom", #legenda na dole, by oszczędzić miejsce
+        plot.title = element_text(face = "bold"))
+
+print(wykres_knn_tuning)
+
+
+#Wykres tuningu LDA 
+df_lda_tuning <- data.frame(
+  PCA_Components = pca_grid, 
+  Accuracy = mean_lda_acc #użycie gotowego wektora z pliku rds
+)
+
+wykres_lda_tuning <- ggplot(df_lda_tuning, aes(x = PCA_Components, y = Accuracy)) +
+  geom_line(color = "#2C3E50", linewidth = 1) +
+  geom_point(color = "#2C3E50", size = 3) +
+  scale_x_continuous(breaks = pca_grid) + 
+  theme_minimal() +
+  labs(title = "Profil tuningu LDA",
+       x = "Składowe główne PCA",
+       y = "Średnie Accuracy") +
+  theme(plot.title = element_text(face = "bold"))
+
+print(wykres_lda_tuning)
+
+
+#Wykres tuningu Drzewa decyzyjnego ---
+df_tree_tuning <- data.frame(
+  cp = tree_grid$cp, 
+  minsplit = as.factor(tree_grid$minsplit), 
+  Accuracy = mean_tree_acc #użycie gotowego wektora z pliku rds
+)
+
+wykres_tree_tuning <- ggplot(df_tree_tuning, aes(x = cp, y = Accuracy, color = minsplit, group = minsplit)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  scale_color_brewer(palette = "Reds") + 
+  theme_minimal() +
+  labs(title = "Profil tuningu drzewa",
+       x = "Parametr cp",
+       y = "Średnie Accuracy",
+       color = "minsplit") +
+  theme(legend.position = "bottom", #legenda na dole
+        plot.title = element_text(face = "bold"))
+
+print(wykres_tree_tuning)
+```
+
+```{r}
+#| fig-pos: "H"
+#wykres - przed i po tunignu
+library(ggplot2)
+
+#---WYCIĄGNIĘCIE WYNIKÓW BAZOWYCH (PRZED TUNINGIEM)
+idx_knn_bazowe <- which(knn_grid$k == 5 & knn_grid$kernel == "rectangular")
+acc_knn_przed <- mean_knn_acc[idx_knn_bazowe] 
+
+#domyślne cp dla rpart to 0.01, więc znajdujemy w siatce wartość najbliższą tej liczbie
+idx_tree_bazowe <- which.min(abs(tree_grid$cp - 0.01) + abs(tree_grid$minsplit - 20))
+acc_tree_przed <- mean_tree_acc[idx_tree_bazowe]
+
+#wynik bazowy dla LDA (5 składowych PCA)
+idx_lda_bazowe <- which(pca_grid == 5)
+acc_lda_przed <- mean_lda_acc[idx_lda_bazowe]
+
+#ZBUDOWANIE RAMKI DANYCH DO WYKRESU ---
+df_porownanie <- data.frame(
+  Model = rep(c("kNN", "Drzewo decyzyjne", "LDA"), each = 2),
+  Etap = rep(c("Przed tuningiem", "Po tuningu"), times = 3),
+  Accuracy = c(acc_knn_przed, mean_knn_acc[best_knn_idx], #wyniki optymalne
+               acc_tree_przed, mean_tree_acc[best_tree_idx],
+               acc_lda_przed,  mean_lda_acc[best_pca_idx])
+)
+
+#zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności - po prawej najlepszy model
+df_porownanie$Model <- factor(df_porownanie$Model, levels = c("Drzewo decyzyjne", "kNN", "LDA"))
+
+# DODANE: wymuszenie kolejności dla Etapu
+df_porownanie$Etap <- factor(df_porownanie$Etap, levels = c("Przed tuningiem", "Po tuningu"))
+
+#WYKRES
+wykres_porownanie <- ggplot(df_porownanie, aes(x = Model, y = Accuracy, fill = Etap)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7, color = "black") +
+  geom_text(aes(label = round(Accuracy, 4)), 
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 4, fontface = "bold") +
+  scale_fill_manual(values = c("Przed tuningiem" = "#95A5A6", "Po tuningu" = "#2ECC71")) +
+  coord_cartesian(ylim = c(0.7, 1.05)) +
+  theme_minimal() +
+  labs(title = "Wpływ optymalizacji hiperparametrów na dokładność modeli",
+       # DODANE: minsplit, przełamanie wiersza \n, skrócenie tekstu
+       subtitle = paste("kNN (bazowe k=5 -> opt. k=", best_k, ") | Drzewo (bazowe cp~0.01, minsplit=20 -> opt. cp=", best_cp, ", minsplit=", best_minsplit, ")\n",
+                        "LDA (PCA=5 -> opt. PCA=", best_pca, ")", sep=""),
+       x = "Algorytm",
+       y = "Średnie Accuracy z 10-fold CV",
+       fill = "Stan modelu") +
+  theme(legend.position = "top",
+        text = element_text(size = 12),
+        plot.subtitle = element_text(size = 9, lineheight = 1.2),
+        plot.title = element_text(face = "bold")
+        )
+
+print(wykres_porownanie)
+```
+
+# TO DO:
+
+-   
+
+-   w modelach zacząć od accuracy i najlepszych parametrów, potem analiza hiperparametrów,
 
 Źródła\
 (a) Forina, M. et al, PARVUS - An Extendible Package for Data" Exploration, Classification and Correlation. Institute of Pharmaceutical" \[7\] " and Food Analysis and Technologies, Via Brigata Salerno, 16147 Genoa, Italy.\
