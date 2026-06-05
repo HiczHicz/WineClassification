@@ -41,7 +41,7 @@ W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każd
 
 -   **k-Najbliższych Sąsiadów (kNN):**
 
-    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych), co wyjaśnia 80% całkowitej wariancji zbioru, pozwalając zredukować wymiar, odrzucając jedynie szum informacyjny. W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów \$k\$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
+    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych), co wyjaśnia ok. 80% całkowitej wariancji zbioru i pozwala zredukować wymiar, odrzucając jedynie szum informacyjny. W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów \$k\$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
 
 -   **Liniowa Analiza Dyskryminacyjna (LDA):**
 
@@ -56,7 +56,7 @@ W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każd
 
 ## **Sprawdzenie brakujących wartości i zrównoważenia klas.**
 
-Zbiór danych nie ma brakujących wartości. Zbiór jest stosunkowo zbalansowany, z lekką dominacją klasy 2 (71 obserwacji), 59 obserwacjami w klasie 2 i najmniejszą reprezentacją klasy 3 (48 obserwacji). Ta proporcja uzasadnia wybór celności (Accuracy) jako odpowiedniej miary oceny jakości modeli.
+Zbiór danych nie ma brakujących wartości. Jest stosunkowo zbalansowany, z lekką dominacją klasy 2 (71 obserwacji), 59 obserwacjami w klasie 2 i najmniejszą reprezentacją klasy 3 (48 obserwacji). Ta proporcja uzasadnia wybór celności (Accuracy) jako odpowiedniej miary oceny jakości modeli.
 
 ## **Badanie rozkładów i wartości odstających zmiennych.**
 
@@ -112,6 +112,8 @@ colnames(wine_df) <- c(
 
 wine_df$Class <- as.factor(wine_df$Class)
 
+
+#w tym pliku przekształcenie do formatu długiego robimy już w tym miejscu
 wine_long <- pivot_longer(wine_df, 
                           cols = -Class, 
                           names_to = "Variable", 
@@ -124,11 +126,11 @@ wine_train <- training(wine_split)
 wine_test  <- testing(wine_split)
 
 
-#WCZYTANIE WYNIKÓW Z PLIKU RDS ---
+#WCZYTANIE WYNIKÓW Z PLIKU RDS
 wyniki <- readRDS("wyniki_modelowania.rds")
 list2env(wyniki, envir = .GlobalEnv)
 
-#przekształcenie danych do formatu długiego (wymóg ggplot2)
+#przekształcenie danych do formatu długiego dla wyników 
 wyniki_long <- pivot_longer(wyniki_cv, 
                             cols = c(KNN_Acc, LDA_Acc, Tree_Acc), 
                             names_to = "Model", 
@@ -146,11 +148,10 @@ wyniki_long$Model <- factor(wyniki_long$Model,
 #| fig-align: center
 
 
-
-ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class))) +
+ggplot(wine_long, aes(x = Class, y = Value, fill = Class)) +
   geom_boxplot(outlier.colour = "#6E1300", outlier.shape = 16, outlier.size = 2, alpha = 0.8) +
   
-  #ncol = 3 rozciągnie wykresy w poziomie
+  #tak jak w wykresie gęstości, facet_wrap rozbija na parametry, ncol = 3 rozciągnie wykresy w poziomie
   facet_wrap(~Variable, scales = "free", ncol = 3) +
   theme_minimal() +
   labs(title = "Analiza wartości odstających w podziale na klasy",
@@ -164,6 +165,8 @@ ggplot(wine_long, aes(x = as.factor(Class), y = Value, fill = as.factor(Class)))
     plot.title = element_text(face = "bold"),
     axis.text = element_text(size = 9)
   )
+
+
 ```
 
 ## **Wykres korelacji**
@@ -206,16 +209,17 @@ Ponadto, z klastrów można wyciągnąć następujące wnioski:
 
     corrplot(korelacje_wine,
              method = "circle", 
-             order = "hclust", 
-             addrect = 4,
+             order = "hclust", #metoda hclust grupuje klastry skorelowanych danych
+             addrect = 4, #dodanie prostokątów wokół powstałych klastrów 
              col = COL2("RdYlBu"), 
-             tl.srt = 45,
-             mar = c(0, 0, 2, 0) # dodaje górny margines na tytuł
+             tl.srt = 45 #obót etykiet o 45 stopni
              )
+
+    #trzeba zaznaczyć tytuł wraz z poprzednim corrplot(). tutaj wygląda brzydko, w raporcie jest dostosowany i generuje się w poprawny sposób przez dodanie execute
     title(main = "Macierz korelacji predyktorów z grupowaniem (hclust)", 
-          adj=0,
-          font.main = 2, # 2 oznacza pogrubienie (bold)
-          cex.main = 1) # rozmiar odpowiadający size = 16
+          adj=0, #wyrównanie tytułu do lewej
+          font.main = 2, #dodanie pogrubienia
+          cex.main = 1) #rozmiar odpowiadający size = 16
     ```
 
 ## **Wizualizacja struktury danych w przestrzeni PCA**
@@ -250,9 +254,9 @@ W tej części raportu przechodzimy do podsumowania pracy naszych modeli: kNN, L
 
 Wstępne podsumowanie optymalizacji i kroswalidacji pokrywają się z wnioskami z analizy struktury danych:
 
--   **kNN oraz LDA okazały się bezkonkurencyjne**, osiągając średnią dokładność na poziomie odpowiednio **98.33%** (dla $k = 9$ i jądra Epanechnikova) oraz **98.40%** (przy wykorzystaniu wszystkich 13 składowych PCA). Modele te w większości foldów działały bezbłędnie, co potwierdza, że geometryczna, płynna separacja klas w przestrzeni cech bardzo im sprzyja.
+-   **kNN oraz LDA** osiągnęły średnią dokładność na poziomie odpowiednio **98.33%** (dla $k = 9$ i jądra Epanechnikova) oraz **98.40%** (przy wykorzystaniu wszystkich 13 składowych PCA). Modele te w większości foldów działały bezbłędnie, co potwierdza, że geometryczna separacja klas w przestrzeni cech bardzo im sprzyja.
 
--   **Drzewo decyzyjne (bagging) radzi sobie zauważalnie słabiej**, uzyskując średnie Accuracy na poziomie **92.67%** (dla parametrów $cp = 0.005$ oraz $minsplit = 3$). Co więcej, wyniki z poszczególnych przebiegów pętli pokazują, że model ten ma dużą wariancję - jego dokładność potrafi skoczyć do idealnego 100%, aby w innym foldzie spaść do poziomu poniżej 85%.
+-   **Drzewo decyzyjne (bagging)** radzi sobie słabiej, uzyskując średnie Accuracy na poziomie **92.67%** (dla parametrów $cp = 0.005$ oraz $minsplit = 3$). Co więcej, wyniki z poszczególnych przebiegów pętli pokazują, że model ten ma dużą wariancję - jego dokładność potrafi skoczyć do idealnego 100%, aby w innym foldzie spaść do poziomu poniżej 85%.
 
 Poniżej szczegółowo rozbijamy te wyniki na poszczególne etapy analizy.
 
@@ -275,6 +279,7 @@ Aby uniknąć przypadkowego doboru parametrów i uzyskać największą dokładno
 Bezpośrednie zyski z przeprowadzonego procesu dobrze obrazuje wykres słupkowy „Przed i po tuningu”. Zbiór *Wine* jest prostym geometrycznie zbiorem, przez co nawet modele z parametrami bazowymi startowały z bardzo wysokiego pułapu (powyżej 90%). Mimo to, precyzyjne przeszukanie siatki pozwoliło urwać dodatkowe ułamki procentów celności dla każdego algorytmu. Najważniejszym zyskiem z tuningu nie jest jednak sam wzrost średniej, ale upewnienie się, że modele działają w swoich optymalnych i stabilnych konfiguracjach, co ma kluczowe znaczenie dla ich zachowania na zbiorze testowym.
 
 ```{r}
+#łączymy trzy wykresy koło siebie
 #| layout-ncol: 3
 #| fig-height: 7
 #| fig-width: 6
@@ -303,7 +308,7 @@ wykres_knn_tuning <- ggplot(df_knn_tuning, aes(x = k, y = Accuracy, color = Kern
        y = "Średnie Accuracy",
        color = "Kernel") +
   theme(legend.position = "bottom", #legenda na dole, by oszczędzić miejsce
-        plot.title = element_text(face = "bold"))
+        plot.title = element_text(face = "bold")) #dodanie pogrubienia
 
 print(wykres_knn_tuning)
 
@@ -354,7 +359,7 @@ print(wykres_tree_tuning)
 #wykres - przed i po tunignu
 library(ggplot2)
 
-#---WYCIĄGNIĘCIE WYNIKÓW BAZOWYCH (PRZED TUNINGIEM)
+#---WYCIĄGNIĘCIE WYNIKÓW BAZOWYCH (PRZED TUNINGIEM)---
 idx_knn_bazowe <- which(knn_grid$k == 5 & knn_grid$kernel == "rectangular")
 acc_knn_przed <- mean_knn_acc[idx_knn_bazowe] 
 
@@ -366,7 +371,7 @@ acc_tree_przed <- mean_tree_acc[idx_tree_bazowe]
 idx_lda_bazowe <- which(pca_grid == 5)
 acc_lda_przed <- mean_lda_acc[idx_lda_bazowe]
 
-#ZBUDOWANIE RAMKI DANYCH DO WYKRESU ---
+#---ZBUDOWANIE RAMKI DANYCH DO WYKRESU ---
 df_porownanie <- data.frame(
   Model = rep(c("kNN", "Drzewo decyzyjne", "LDA"), each = 2),
   Etap = rep(c("Przed tuningiem", "Po tuningu"), times = 3),
@@ -376,9 +381,9 @@ df_porownanie <- data.frame(
 )
 
 #zabezpieczenie przed błędem wyświetlania nazw modeli w odpowiedniej kolejności - po prawej najlepszy model
-df_porownanie$Model <- factor(df_porownanie$Model, levels = c("Drzewo decyzyjne", "kNN", "LDA"))
+df_porownanie$Model <- factor(df_porownanie$Model, levels = c("LDA", "kNN", "Drzewo decyzyjne"))
 
-# DODANE: wymuszenie kolejności dla Etapu
+#ymuszenie kolejności dla etapu
 df_porownanie$Etap <- factor(df_porownanie$Etap, levels = c("Przed tuningiem", "Po tuningu"))
 
 #WYKRES
@@ -390,7 +395,6 @@ wykres_porownanie <- ggplot(df_porownanie, aes(x = Model, y = Accuracy, fill = E
   coord_cartesian(ylim = c(0.7, 1.05)) +
   theme_minimal() +
   labs(title = "Wpływ optymalizacji hiperparametrów na dokładność modeli",
-       #minsplit, przełamanie wiersza \n, skrócenie tekstu
        subtitle = paste("kNN (bazowe k=5 -> opt. k=", best_k, ") | Drzewo (bazowe cp~0.01, minsplit=20 -> opt. cp=", best_cp, ", minsplit=", best_minsplit, ")\n",
                         "LDA (PCA=5 -> opt. PCA=", best_pca, ")", sep=""),
        x = "Algorytm",
@@ -412,6 +416,7 @@ Po ustaleniu optymalnych hiperparametrów, dokładna ocena zachowania modeli na 
 ```{r}
 
 #WYKRES STABILNOŚCI NA FOLDACH
+#reorder sortuje modele na osi X malejąco od najwyższej mediany dokładności (najlepszy model będzie po lewej)
 wykres_box <- ggplot(wyniki_long, aes(x = reorder(Model, -Accuracy, FUN = median), y = Accuracy, fill = Model)) +
   geom_boxplot(alpha = 0.8, outlier.colour = "#6E1300", outlier.size = 2) +
   scale_fill_manual(values = c("LDA" = "#2C3E50", "kNN" = "#18BC9C", "Drzewo decyzyjne" = "#6E1300")) +
@@ -430,7 +435,7 @@ print(wykres_box)
 
 Głównym wnioskiem płynącym z analizy rozkładu celności jest **różnica w wariancji modeli**:
 
--   **LDA i kNN wykazują ekstremalną stabilność.** Pudełka tych wykresów są "ściśnięte" na samej górze osi, co oznacza, że w większości foldów modele te osiągnęły bezbłędną klasyfikację. Pojedyncze punkty odstające na poziomie ok. 0.92 reprezentują foldy, w których algorytmy pomyliły się o jedną obserwację.
+-   **LDA i kNN wykazują ekstremalną stabilność.** Pojedyncze punkty odstające na poziomie ok. 0.92 reprezentują foldy, w których algorytmy pomyliły się o jedną obserwację.
 
 -   **Drzewo decyzyjne (bagging) charakteryzuje się bardzo wysoką wariancją.** Szerokie pudełko (od 0.91 do 0.98) oraz długi dolny wąs sięgający wartości 0.83 pokazują, że model ten jest silnie uzależniony od losowego składu podpróbek walidacyjnych. Ze względu na małą liczebność pojedynczego foldu (ok. 12 obserwacji), ortogonalne cięcia przestrzeni przez drzewa okazały się mało odporne na zmienności wartości.
 
@@ -441,12 +446,11 @@ Aby zrozumieć mechanizm potknięć poszczególnych algorytmów, wyizolowano i p
 ```{r}
 
 #TRUDNE PRZYPADKI
+#szukanie błędnie dopasowanych obserwacji
 trudne_przypadki <- wyniki_pred %>%
   dplyr::filter(kNN != Rzeczywista_Klasa | LDA != Rzeczywista_Klasa | Tree != Rzeczywista_Klasa)
 
-#cat("Liczba win, z którymi modele miały problem:", nrow(trudne_przypadki), "\n")
-
-library(ggplot2)
+#cat("Liczba win, z którymi modele miały problem:", nrow(trudne_przypadki), "\n"
 
 #przekształcenie do wykresu
 bledy_wykres <- trudne_przypadki %>%
@@ -455,7 +459,7 @@ bledy_wykres <- trudne_przypadki %>%
     LDA  = ifelse(LDA == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie"),
     Tree = ifelse(Tree == Rzeczywista_Klasa, "Poprawnie", "Niepoprawnie")
   ) %>%
-  dplyr::select(ID, kNN, LDA, Tree) %>%  # <-- dodane dplyr::, inaczej scale() było z MASS i błąd
+  dplyr::select(ID, kNN, LDA, Tree) %>%  
   pivot_longer(-ID, names_to = "Model", values_to = "Status")
 
 #generowanie heatmapy dla błędów
@@ -463,14 +467,14 @@ ggplot(bledy_wykres, aes(x = as.factor(ID), y = Model, fill = Status)) +
   geom_tile(color = "white", linewidth = 0.5) +
   scale_fill_manual(values = c("Niepoprawnie" = "#E74C3C", "Poprawnie" = "#2ECC71")) +
   theme_minimal() +
-  theme(
-    axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8),
-    plot.title = element_text(face = "bold")
-    ) +
   labs(title = "Mapa błędów na poszczególnych obserwacjach",
        subtitle = "Wyświetlono tylko obserwacje, na których pomylił się minimum jeden model",
        x = "ID Obserwacji (Wina)",
-       y = "Algorytm")
+       y = "Algorytm") +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8),
+    plot.title = element_text(face = "bold")
+    )
 ```
 
 Wizualizacja ta ujawnia unikalne cechy geometryczne klasyfikatorów oraz obrazuje różnice w ich stabilności:
@@ -592,6 +596,6 @@ Wszystkie trzy modele radzą sobie na zbiorze testowym praktycznie tak samo dobr
 
 # Wnioski końcowe
 
-Przeprowadzona analiza dowodzi, że zbiór danych Wine charakteryzuje się wyraźną separowalnością klas, co pozwoliło wszystkim zastosowanym algorytmom osiągnąć bardzo wysoką celność na zbiorze testowym (powyżej 96%). Mimo zbliżonych wyników, jednoznacznym zwycięzcą i ostatecznie rekomendowanym modelem zostaje **LDA**.
+Przeprowadzona analiza dowodzi, że zbiór danych Wine charakteryzuje się wyraźną separowalnością klas, co pozwoliło wszystkim zastosowanym algorytmom osiągnąć bardzo wysoką celność na zbiorze testowym (powyżej 96%). Mimo zbliżonych wyników, zwycięzcą i ostatecznie rekomendowanym modelem spośród trzech poddanych analizie zostaje **LDA**.
 
-Za wyborem LDA przemawia jego ekstremalna stabilność wykazana w kroswalidacji oraz prostota matematyczna. Algorytm ten idealnie wykorzystał naturalną, liniową geometrię rozkładu predyktorów. W przeciwieństwie do drzew decyzyjnych, LDA nie wymagało stosowania złożonego komitetu (baggingu) w celu redukcji wariancji. Z kolei w porównaniu do kNN, LDA tworzy globalne hiperpłaszczyzny decyzyjne, co czyni model znacznie lżejszym i szybszym w środowisku produkcyjnym, ponieważ eliminuje konieczność każdorazowego przeliczania odległości dla nowych obserwacji.
+Za wyborem LDA przemawia jego stabilność wykazana w kroswalidacji oraz prostota matematyczna. Algorytm ten idealnie wykorzystał naturalną, liniową geometrię rozkładu predyktorów. W przeciwieństwie do drzew decyzyjnych, LDA nie wymagało stosowania złożonego komitetu (baggingu) w celu redukcji wariancji. Z kolei w porównaniu do kNN, LDA tworzy globalne hiperpłaszczyzny decyzyjne, co czyni model znacznie lżejszym i szybszym w środowisku produkcyjnym, ponieważ eliminuje konieczność każdorazowego przeliczania odległości dla nowych obserwacji.
