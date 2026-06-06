@@ -1,5 +1,5 @@
 ---
-title: "Wine Classification Report"
+title: "Porównanie modeli klasyfikacyjnych dla zbioru Wine"
 author: "Martyna Pieczka, Magdalena Chamera"
 format: 
   pdf:
@@ -82,8 +82,8 @@ Badanie wartości odstających daje następujące wnioski:
 
 library(ggplot2)
 library(tidyr)
-
 library(ragg)
+
 
 #konieczne żeby poprawnie działały polskie znaki
 knitr::opts_chunk$set( 
@@ -212,14 +212,15 @@ Ponadto, z klastrów można wyciągnąć następujące wnioski:
              order = "hclust", #metoda hclust grupuje klastry skorelowanych danych
              addrect = 4, #dodanie prostokątów wokół powstałych klastrów 
              col = COL2("RdYlBu"), 
-             tl.srt = 45 #obót etykiet o 45 stopni
+             tl.srt = 45, #obót etykiet o 45 stopni
+             mar = c(0, 0, 3, 0) #margines
              )
 
-    #trzeba zaznaczyć tytuł wraz z poprzednim corrplot(). tutaj wygląda brzydko, w raporcie jest dostosowany i generuje się w poprawny sposób przez dodanie execute
     title(main = "Macierz korelacji predyktorów z grupowaniem (hclust)", 
           adj=0, #wyrównanie tytułu do lewej
           font.main = 2, #dodanie pogrubienia
-          cex.main = 1) #rozmiar odpowiadający size = 16
+          cex.main = 1,#rozmiar odpowiadający size = 16
+          line = 1.5) #tekst w górę
     ```
 
 ## **Wizualizacja struktury danych w przestrzeni PCA**
@@ -279,11 +280,12 @@ Aby uniknąć przypadkowego doboru parametrów i uzyskać największą dokładno
 Bezpośrednie zyski z przeprowadzonego procesu dobrze obrazuje wykres słupkowy „Przed i po tuningu”. Zbiór *Wine* jest prostym geometrycznie zbiorem, przez co nawet modele z parametrami bazowymi startowały z bardzo wysokiego pułapu (powyżej 90%). Mimo to, precyzyjne przeszukanie siatki pozwoliło urwać dodatkowe ułamki procentów celności dla każdego algorytmu. Najważniejszym zyskiem z tuningu nie jest jednak sam wzrost średniej, ale upewnienie się, że modele działają w swoich optymalnych i stabilnych konfiguracjach, co ma kluczowe znaczenie dla ich zachowania na zbiorze testowym.
 
 ```{r}
-#łączymy trzy wykresy koło siebie
 #| layout-ncol: 3
 #| fig-height: 7
 #| fig-width: 6
 #| fig-pos: "H"
+
+#łączymy trzy wykresy koło siebie
 
 library(ggplot2)
 

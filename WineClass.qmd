@@ -129,14 +129,15 @@ corrplot(korelacje_wine,
          order = "hclust", #metoda hclust grupuje klastry skorelowanych danych
          addrect = 4, #dodanie prostokątów wokół powstałych klastrów 
          col = COL2("RdYlBu"), 
-         tl.srt = 45 #obót etykiet o 45 stopni
+         tl.srt = 45, #obót etykiet o 45 stopni
+         mar = c(0, 0, 3, 0) #margines
          )
 
-#trzeba zaznaczyć tytuł wraz z poprzednim corrplot(). tutaj wygląda brzydko, w raporcie jest dostosowany i generuje się w poprawny sposób przez dodanie execute
 title(main = "Macierz korelacji predyktorów z grupowaniem (hclust)", 
       adj=0, #wyrównanie tytułu do lewej
       font.main = 2, #dodanie pogrubienia
-      cex.main = 1) #rozmiar odpowiadający size = 16
+      cex.main = 1,
+      line=1.5) #rozmiar odpowiadający size = 16
 
 ```
 
