@@ -41,7 +41,7 @@ W badaniu wykorzystano trzy różne podejścia do klasyfikacji, z których każd
 
 -   **k-Najbliższych Sąsiadów (kNN):**
 
-    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych), co wyjaśnia ok. 80% całkowitej wariancji zbioru i pozwala zredukować wymiar, odrzucając jedynie szum informacyjny. W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów \$k\$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
+    Model nieparametryczny oparty na odległości euklidesowej. Ze względu na wrażliwość algorytmu na skale zmiennych oraz klątwę wymiarowości, dane wejściowe poddano standaryzacji, a następnie zredukowano ich wymiar za pomocą PCA (do 5 składowych), co wyjaśnia ok. 80% całkowitej wariancji zbioru i pozwala zredukować wymiar, odrzucając jedynie szum informacyjny. W procesie kroswalidacji przeprowadzono dwuwymiarowy tuning hiperparametrów: optymalizowano liczbę sąsiadów $k$ (w zakresie 1–25) oraz rodzaj funkcji jądrowej (kernel), co pozwoliło na uelastycznienie granic decyzyjnych klasyfikatora.
 
 -   **Liniowa Analiza Dyskryminacyjna (LDA):**
 
@@ -250,7 +250,7 @@ ggplot(df_plots_pca, aes(x = PC1, y = PC2, color = Class)) +
 
 # Interpretacja modeli
 
-W tej części raportu przechodzimy do podsumowania pracy naszych modeli: kNN, LDA oraz drzewa decyzyjnego z baggingiem. Cały proces oceny ułożyłyśmy w logiczną całość, tj. zaczynamy od pokazania, jak przebiegał tuning hiperparametrów, następnie sprawdzamy stabilność algorytmów podczas 10-krotnej kroswalidacji, a na koniec oceniamy ich ostateczną skuteczność na odizolowanym zbiorze testowym.
+W tej części raportu zostanie podsumowana praca badanych modeli: kNN, LDA oraz drzewa decyzyjnego z baggingiem. Cały proces oceny ułożyłyśmy w logiczną całość, tj. zaczynamy od pokazania, jak przebiegał tuning hiperparametrów, następnie sprawdzamy stabilność algorytmów podczas 10-krotnej kroswalidacji, a na koniec oceniamy ich ostateczną skuteczność na odizolowanym zbiorze testowym.
 
 Wstępne podsumowanie optymalizacji i kroswalidacji pokrywają się z wnioskami z analizy struktury danych:
 
@@ -348,7 +348,7 @@ wykres_tree_tuning <- ggplot(df_tree_tuning, aes(x = cp, y = Accuracy, color = m
        x = "Parametr cp",
        y = "Średnie Accuracy",
        color = "minsplit") +
-  theme(legend.position = "bottom", #legenda na dole
+  theme(legend.position = "bottom", 
         plot.title = element_text(face = "bold"))
 
 print(wykres_tree_tuning)
